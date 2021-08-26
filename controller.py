@@ -2,8 +2,11 @@
 """
 Created on Tue Dec 15 16:11:19 2020
 
+
+
 @author: Badari
 """
+#TODO: Need to check for errors
 
 import sys
 from PyQt5 import QtWidgets, QtCore, QtGui
