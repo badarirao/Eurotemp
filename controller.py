@@ -1,0 +1,667 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Dec 15 16:11:19 2020
+
+@author: Badari
+"""
+
+import sys
+from PyQt5 import QtWidgets, QtCore, QtGui
+import pyqtgraph as pg
+from Eurothermdesign import Ui_Eurotherm2408
+from eurotherm import Eurotherm
+import numpy as np
+from serial import SerialException
+from time import sleep
+import os  
+
+
+
+class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
+    def __init__(self, *args, obj=None, **kwargs):
+        super(MainWindow,self).__init__(*args,**kwargs)
+        # load the UI page
+        self.fed_data_flag = False
+        self.fileName = None
+        self.instrument_connect_flag = False
+        self.setupUi(self)
+        self.x = [0]
+        self.stepno = 0
+        self.current_Temp = 0.0 # program to save current temperature in this variable
+        self.set_Temp = 0.0
+        self.total_time = 0
+        self.time_left = 0
+        self.instrument_address = "COM4"
+        self.OP = 0
+        self.hold = False
+        self.run_status = False
+        self.step1 = {'T':0.0, 'Rt':0.0,'Rr':0.0,'H':0.0,'E':2}
+        self.step2 = {'T':0.0, 'Rt':0.0,'Rr':0.0,'H':0.0,'E':2}
+        self.step3 = {'T':0.0, 'Rt':0.0,'Rr':0.0,'H':0.0,'E':2}
+        self.clear_parameters()
+        self.asteps = [self.step1, self.step2, self.step3]
+        self.exit_menu() # initiate the action for exit button in menubar
+        self.save_menu() # initiate the dialogue for save program button in menubar
+        self.open_menu() # initiate the dialogue for open program button in menubar
+        self.new_menu() # initiate the dialogue for new program button in menubar
+        self.com1_menu()
+        self.com2_menu()
+        self.com3_menu()
+        self.com4_menu()
+        self.Enter_Manually_menu()
+        self.initialize_plot()
+        self.pushButton.setEnabled(False)
+        self.pushButton_2.setEnabled(False)  # 
+        self.pushButton_3.setEnabled(False)  #
+        self.pushButton_4.setEnabled(False)
+        self.pushButton_7.setEnabled(False)
+        self.doubleSpinBox_3.setReadOnly(True)
+        self.doubleSpinBox_7.setReadOnly(True)
+        self.doubleSpinBox_11.setReadOnly(True)
+        self.doubleSpinBox_2.setSingleStep(0.1)
+        self.doubleSpinBox_6.setSingleStep(0.1)
+        self.doubleSpinBox_10.setSingleStep(0.1)
+        self.pushButton_7.clicked.connect(self.feed_parameters) 
+        self.pushButton_6.clicked.connect(self.connect_instrument)
+        self.pushButton.clicked.connect(self.run_program)
+        self.pushButton_2.clicked.connect(self.stop_program)
+        self.pushButton_3.clicked.connect(self.hold_program)
+        self.pushButton_4.clicked.connect(self.continue_program)
+        self.pushButton_5.clicked.connect(self.clear_parameters)
+        self.doubleSpinBox_2.valueChanged['double'].connect(lambda: self.Rt_to_Rr(self.current_Temp,self.doubleSpinBox.value(),self.doubleSpinBox_2,self.doubleSpinBox_3))
+        self.doubleSpinBox.valueChanged['double'].connect(lambda: self.Rt_to_Rr(self.current_Temp,self.doubleSpinBox.value(),self.doubleSpinBox_2,self.doubleSpinBox_3))
+        self.doubleSpinBox_6.valueChanged['double'].connect(lambda: self.Rt_to_Rr(self.doubleSpinBox.value(),self.doubleSpinBox_5.value(),self.doubleSpinBox_6,self.doubleSpinBox_7))
+        self.doubleSpinBox_5.valueChanged['double'].connect(lambda: self.Rt_to_Rr(self.doubleSpinBox.value(),self.doubleSpinBox_5.value(),self.doubleSpinBox_6,self.doubleSpinBox_7))
+        self.doubleSpinBox_10.valueChanged['double'].connect(lambda: self.Rt_to_Rr(self.doubleSpinBox_5.value(),self.doubleSpinBox_9.value(),self.doubleSpinBox_10,self.doubleSpinBox_11))
+        self.doubleSpinBox_9.valueChanged['double'].connect(lambda: self.Rt_to_Rr(self.doubleSpinBox_5.value(),self.doubleSpinBox_9.value(),self.doubleSpinBox_10,self.doubleSpinBox_11))
+        os.chdir(os.path.join(os.path.expandvars("%userprofile%"),"Desktop"))
+        self.program_finish_status = False
+        
+     
+    def connect_instrument(self):
+        try:
+            self.eth = Eurotherm(self.instrument_address)
+            self.instID = self.eth.read_param('II')
+            if self.instID == '>2480':
+                self.statusBar().showMessage('Succussfully connected to Eurotherm2408. Waiting to feed parameters..')
+                self.current_Temp = float(self.eth.read_param('PV'))
+                self.instrument_connect_flag = True
+                self.pushButton_5.setEnabled(True)
+                self.pushButton_6.setEnabled(False)
+                self.pushButton.setEnabled(True)
+                self.pushButton_7.setEnabled(True)
+                self.menuAddress.setDisabled(True)
+                self.eth.write_param('EP','1') # set program number as 1
+                self.eth.write_param('d0','1') # set ramp rate unit as minutes
+                self.eth.write_param('p0','1') # set dwell time unit as minutes
+                self.get_controller_data()  # get current program present in the controller
+                self.display_status()  # display all the current status of the controller
+            else:
+                self.statusBar().showMessage('Wrong Instrument! Change address to correct instrument and retry!',5000)
+                self.instrument_connect_flag = False
+                inst = QtWidgets.QDialog(self)
+                inst.resize(400, 60)
+                hl = QtWidgets.QHBoxLayout(inst)
+                inst.setWindowTitle("Wrong Instrument...")
+                l = QtWidgets.QLabel(inst)
+                l.setText("Wrong Instrument connected!\n Please enter the correct address for Eurotherm 2408")
+                hl.addWidget(l)
+                inst.exec_()
+                self.eth.s.close()
+        except SerialException:
+            self.instrument_connect_flag = False
+            inst = QtWidgets.QDialog(self)
+            inst.resize(400, 60)
+            hl = QtWidgets.QHBoxLayout(inst)
+            inst.setWindowTitle("Error Connecting Instrument...")
+            l = QtWidgets.QLabel(inst)
+            l.setText("The instrument was not found at this address\n Please try different address or check instrument connection")
+            hl.addWidget(l)
+            inst.exec_()
+    
+    def feed_parameters(self):
+        if self.instrument_connect_flag == False:
+            self.connect_instrument()
+        if self.instrument_connect_flag == False:
+            return 0
+        self.statusBar().showMessage('Feeding the data into the controller. Please wait..')
+        self.get_parameters()
+        self.initialize_plot_data()
+        self.send_parameters()
+        self.fed_data_flag = True
+        if self.fileName:
+            self.savefile()
+        self.plot()
+        self.statusBar().showMessage('Finished loading the program into controller. Click RUN to start!')
+        self.get_instrument_status()
+        self.display_status()
+    
+    def run_program(self):
+        # run the program only if the instrument is successfully connected
+        if self.instrument_connect_flag == False:
+            self.connect_instrument()
+        if self.instrument_connect_flag == False:
+            return 0
+        if self.fed_data_flag == False:
+            self.feed_parameters()
+        self.program_finish_status = False
+        self.pushButton_2.setEnabled(True)
+        self.pushButton_3.setEnabled(True)
+        self.pushButton_4.setEnabled(True)
+        self.pushButton.setEnabled(False)
+        self.pushButton_5.setEnabled(False)
+        self.pushButton_6.setEnabled(False)
+        self.pushButton_7.setEnabled(False)
+        self.doubleSpinBox.setEnabled(False)
+        self.doubleSpinBox_2.setEnabled(False)
+        self.doubleSpinBox_3.setEnabled(False)
+        self.doubleSpinBox_4.setEnabled(False)
+        self.doubleSpinBox_5.setEnabled(False)
+        self.doubleSpinBox_6.setEnabled(False)
+        self.doubleSpinBox_7.setEnabled(False)
+        self.doubleSpinBox_8.setEnabled(False)
+        self.doubleSpinBox_9.setEnabled(False)
+        self.doubleSpinBox_10.setEnabled(False)
+        self.doubleSpinBox_11.setEnabled(False)
+        self.doubleSpinBox_12.setEnabled(False)
+        self.comboBox.setEnabled(False)
+        self.comboBox_2.setEnabled(False)
+        self.comboBox_3.setEnabled(False)
+        self.plot_realtime_data()
+        # send command to instrument to start the heating program
+        self.eth.write_param('PC','2')
+        self.statusBar().showMessage('Program is running..')
+        self.run_status = True
+        self.fed_data_flag = False
+        
+    def stop_program(self):
+        self.pushButton.setEnabled(True)
+        self.pushButton_4.setEnabled(True)
+        self.pushButton_5.setEnabled(True)
+        self.pushButton_7.setEnabled(True)
+        self.doubleSpinBox.setEnabled(True)
+        self.doubleSpinBox_2.setEnabled(True)
+        self.doubleSpinBox_3.setEnabled(True)
+        self.doubleSpinBox_4.setEnabled(True)
+        self.doubleSpinBox_5.setEnabled(True)
+        self.doubleSpinBox_6.setEnabled(True)
+        self.doubleSpinBox_7.setEnabled(True)
+        self.doubleSpinBox_8.setEnabled(True)
+        self.doubleSpinBox_9.setEnabled(True)
+        self.doubleSpinBox_10.setEnabled(True)
+        self.doubleSpinBox_11.setEnabled(True)
+        self.doubleSpinBox_12.setEnabled(True)
+        self.comboBox.setEnabled(True)
+        self.comboBox_2.setEnabled(True)
+        self.comboBox_3.setEnabled(True)
+        self.pushButton_2.setEnabled(False)
+        self.pushButton_2.setEnabled(False)
+        self.pushButton_3.setEnabled(False)
+        self.pushButton_4.setEnabled(False)
+        self.timer.stop()
+        self.eth.write_param('PC','1')
+        self.run_status = False
+        self.statusBar().showMessage('User has stopped the program.')
+        sleep(1)
+        self.get_instrument_status()
+        self.display_status()
+        
+    def hold_program(self):
+        self.hold = True
+        self.pushButton_3.setEnabled(False)
+        self.statusBar().showMessage('User has paused the program.')
+        # send command to instrument to pause the program
+        self.eth.write_param('PC','4')
+    
+    def continue_program(self):
+        if self.hold:
+            self.pushButton_3.setEnabled(True)
+            self.eth.write_param('PC','2')   # continue the paused program
+            self.hold = False
+        else:
+            self.eth.write_param('PC','4')
+            self.total_time = self.total_time - float(self.eth.read_param('TS'))/3600
+            sleep(0.2)
+            self.eth.write_param('TS','1') # make remaining time in current segment as just 1 sec, 
+                                           # so that the program quickly jumps to next step in the program
+            sleep(0.2)
+            self.eth.write_param('PC','2')
+        self.statusBar().showMessage('Program is running..')
+        
+    def get_instrument_status(self):
+        self.current_Temp = float(self.eth.read_param('PV'))
+        self.OP = float(self.eth.read_param('OP'))
+        self.set_Temp = float(self.eth.read_param('SL'))
+        self.time_left = self.total_time - self.x[-1]
+        if self.time_left < 0:
+            self.time_left = 0
+        
+    def get_controller_data(self):
+        # program to load already stored data from the PID controller
+        ID = ['1','2','3','4','5','6','7','8','9',':',';','<','=','>','?','@']
+        self.clear_parameters()
+        i = 0
+        st = 0
+        s_type = float(self.eth.read_param('$'+ID[i]))
+        while s_type and i<7:
+            if s_type == 1: # ramp rate
+                self.asteps[st]['T'] = float(self.eth.read_param('s'+ID[i]))
+                rate = float(self.eth.read_param('d'+ID[i]))
+                self.asteps[st]['Rt'] = (self.asteps[st]['T']-self.current_Temp)/(60*rate)
+                if float(self.eth.read_param('$'+ID[i+1])) == 0:
+                    self.asteps[st]['E'] = int(float(self.eth.read_param('p'+ID[i+1]))+1)
+                    break
+            elif s_type == 2: # ramp time
+                self.asteps[st]['T'] = float(self.eth.read_param('s'+ID[i]))
+                self.asteps[st]['Rt'] = float(self.eth.read_param('d'+ID[i]))/60
+                if float(self.eth.read_param('$'+ID[i+1])) == 0:
+                    self.asteps[st]['E'] = int(float(self.eth.read_param('p'+ID[i+1]))+1)
+                    break
+            elif s_type == 3: # Dwell
+                self.asteps[st]['H'] = float(self.eth.read_param('d'+ID[i]))/60
+                if float(self.eth.read_param('$'+ID[i+1])) == 0:
+                    self.asteps[st]['E'] = int(float(self.eth.read_param('p'+ID[i+1]))+1)
+                    break
+                else:
+                    self.asteps[st]['E'] = 0
+                st = st+1
+            else:
+                pass
+            i = i+1
+            s_type = float(self.eth.read_param('$'+ID[i]))
+            #print('stype {0}'.format(s_type))
+            #print(i)
+            #print(st)
+        self.load_settings()
+        
+    def display_status(self):
+        # display the target temperature for current segment
+        self.label_19.setText("<html><head/><body><p><span style=\" font-size:10pt;\">{0} ℃</span></p></body></html>".format(self.set_Temp))
+        # display the current temperature
+        self.label_20.setText("<html><head/><body><p><span style=\" font-size:10pt;\">{0} ℃</span></p></body></html>".format(self.current_Temp))
+        # Display the calculated total program run time
+        self.label_18.setText("<html><head/><body><p><span style=\" font-size:10pt;\">{:.3f} H</span></p></body></html>".format(self.total_time))
+        # display the remaining time for the program to end
+        self.label_17.setText("<html><head/><body><p><span style=\" font-size:10pt;\">{:.3f} H</span></p></body></html>".format(self.time_left))
+        # display the current output power being used
+        self.label_16.setText("<html><head/><body><p><span style=\" font-size:10pt;\">{0} %</span></p></body></html>".format(self.OP))
+        # display instrument address
+        self.label_21.setText("<html><head/><body><p><span style=\" font-size:10pt;\">{0}</span></p></body></html>".format(self.instrument_address))
+        # highlight the current step number 
+        if self.run_status == True:
+            try:
+                self.prestep = self.stepno
+                n = int(float(self.eth.read_param('SN')))
+                if n%2 == 0:
+                    self.stepno = int(n/2)
+                else:
+                    self.stepno = int(n/2) + 1
+                if self.prestep != self.stepno:
+                    if self.stepno == 1:
+                        self.label_2.setStyleSheet("background-color: lightgreen")
+                    elif self.stepno == 2:
+                        self.label_3.setStyleSheet("background-color: lightgreen")
+                    elif self.stepno == 3:
+                        self.label_4.setStyleSheet("background-color: lightgreen")
+                    elif self.stepno == 4:
+                        self.label_5.setStyleSheet("background-color: lightgreen")
+                    elif self.stepno == 5:
+                        self.label_10.setStyleSheet("background-color: lightgreen")
+                    elif self.stepno == 6:
+                        self.label_11.setStyleSheet("background-color: lightgreen")
+            except TypeError:
+                pass
+                
+    def clear_parameters(self):
+        self.doubleSpinBox.setValue(0.0)
+        self.doubleSpinBox_2.setValue(0.0)
+        self.doubleSpinBox_3.setValue(0.0)
+        self.doubleSpinBox_4.setValue(0.0)
+        self.doubleSpinBox_5.setValue(0.0)
+        self.doubleSpinBox_6.setValue(0.0)
+        self.doubleSpinBox_7.setValue(0.0)
+        self.doubleSpinBox_8.setValue(0.0)
+        self.doubleSpinBox_9.setValue(0.0)
+        self.doubleSpinBox_10.setValue(0.0)
+        self.doubleSpinBox_11.setValue(0.0)
+        self.doubleSpinBox_12.setValue(0.0)
+        self.comboBox.setCurrentIndex(2)
+        self.comboBox_2.setCurrentIndex(2)
+        self.comboBox_3.setCurrentIndex(2)
+        
+    def Rt_to_Rr(self,t1,t2,db1,db2):
+        if db1.value() != 0:
+            db2.setValue((t2-t1)/(60.0*db1.value()))
+            
+    def get_parameters(self):
+        self.step1['T'] = self.doubleSpinBox.value()
+        self.step1['Rt'] = self.doubleSpinBox_2.value()
+        self.step1['Rr'] = self.doubleSpinBox_3.value()
+        self.step1['H'] = self.doubleSpinBox_4.value()
+        self.step1['E'] = self.comboBox.currentIndex()
+        self.step2['T'] = self.doubleSpinBox_5.value()
+        self.step2['Rt'] = self.doubleSpinBox_6.value()
+        self.step2['Rr'] = self.doubleSpinBox_7.value()
+        self.step2['H'] = self.doubleSpinBox_8.value()
+        self.step2['E'] = self.comboBox_2.currentIndex()
+        self.step3['T'] = self.doubleSpinBox_9.value()
+        self.step3['Rt'] = self.doubleSpinBox_10.value()
+        self.step3['Rr'] = self.doubleSpinBox_11.value()
+        self.step3['H'] = self.doubleSpinBox_12.value()
+        self.step3['E'] = self.comboBox_3.currentIndex()
+        if self.step1['E'] != 0:
+            self.laststep = 1
+        elif self.step2['E'] !=0:
+            self.laststep = 2
+        else: 
+            self.laststep = 3
+            self.step3['E'] = 2
+        
+    def send_parameters(self):
+        ID = ['1','2','3','4','5','6','7','8','9',':',';','<','=','>','?','@']
+        ls = 0
+        i = 0
+        while self.laststep > ls:
+            self.eth.write_param('$'+ID[i],'2')
+            self.eth.write_param('s'+ID[i],str(self.asteps[ls]['T']))
+            self.eth.write_param('d'+ID[i],str(self.asteps[ls]['Rt']*60.0))
+            if self.asteps[ls]['H'] !=0:
+                i = i+1
+                self.eth.write_param('$'+ID[i],'3')
+                self.eth.write_param('d'+ID[i],str(self.asteps[ls]['H']*60.0))
+            if self.laststep == ls+1:
+                i = i+1
+                self.eth.write_param('$'+ID[i],'0')
+                self.eth.write_param('p'+ID[i],str(self.asteps[ls]['E']-1))
+            ls = ls+1
+            i = i+1
+
+    def new_menu(self):
+        self.actionNew.setShortcut('Ctrl+N')
+        self.actionNew.setStatusTip('Clear all parameters and feed new values')
+        self.actionNew.triggered.connect(self.open_new_parameter_file)
+        
+    def open_new_parameter_file(self):
+        self.clear_parameters()
+        options = QtWidgets.QFileDialog.Options()
+        options |= QtWidgets.QFileDialog.DontUseNativeDialog
+        self.fileName, _ = QtWidgets.QFileDialog.getSaveFileName(self,"QFileDialog.getSaveFileName()","","All Files (*);;Parameter Files (*.txt)", options=options)
+        
+    def open_menu(self):
+        self.actionOpen.setShortcut('Ctrl+O')
+        self.actionOpen.setStatusTip('Load parameters saved in a file')
+        self.actionOpen.triggered.connect(self.load_parameters_from_file)
+        
+    def load_parameters_from_file(self):
+        options = QtWidgets.QFileDialog.Options()
+        options |= QtWidgets.QFileDialog.DontUseNativeDialog
+        files, _ = QtWidgets.QFileDialog.getOpenFileNames(self,"QFileDialog.getOpenFileNames()", "","All Files (*);;Parameter Files (*.txt)", options=options)
+        if files:
+            params = []
+            with open(files[0],'r') as file:
+                lines = file.readlines()
+                for line in lines:
+                    if self.isfloat(line.split()[0]):
+                        lp = line.split()
+                        params.append([float(lp[1]),float(lp[2]),float(lp[3]),float(lp[4]),int(lp[5])])
+            if params:
+                l = len(params)
+                if l>0:
+                    self.step1['T'] = params[0][0]
+                    self.step1['Rt'] = params[0][1]
+                    self.step1['Rr'] = params[0][2]
+                    self.step1['H'] = params[0][3]
+                    self.step1['E'] = params[0][4]
+                if l>1:
+                    self.step2['T'] = params[1][0]
+                    self.step2['Rt'] = params[1][1]
+                    self.step2['Rr'] = params[1][2]
+                    self.step2['H'] = params[1][3]
+                    self.step2['E'] = params[1][4]
+                if l>2:
+                    self.step3['T'] = params[2][0]
+                    self.step3['Rt'] = params[2][1]
+                    self.step3['Rr'] = params[2][2]
+                    self.step3['H'] = params[2][3]
+                    self.step3['E'] = params[2][4]
+                if l>3:
+                    exstep = QtWidgets.QDialog(self)
+                    exstep.resize(450, 77)
+                    hl = QtWidgets.QHBoxLayout(exstep)
+                    exstep.setWindowTitle("Too many steps")
+                    l = QtWidgets.QLabel(exstep)
+                    l.setText("Only three steps can be loaded in this program. Remaining steps are ignored!")
+                    hl.addWidget(l)
+                    exstep.exec_()
+            self.load_settings()
+            
+    def save_menu(self):
+        self.actionSave.setShortcut('Ctrl+S')
+        self.actionSave.setStatusTip('Save the current parameters to file')
+        self.actionSave.triggered.connect(self.save_parameters_to_file)
+    
+    def save_parameters_to_file(self):
+        self.get_parameters()
+        options = QtWidgets.QFileDialog.Options()
+        options |= QtWidgets.QFileDialog.DontUseNativeDialog
+        self.fileName, _ = QtWidgets.QFileDialog.getSaveFileName(self,"QFileDialog.getSaveFileName()","","All Files (*);;Parameter Files (*.txt)", options=options)
+        if self.fileName:
+            self.savefile()
+    
+    def savefile(self):
+        if self.fileName.find('.') == -1:
+            self.fileName = self.fileName + '.txt'
+        else:
+            index = self.fileName.rindex('.')
+            self.fileName = self.fileName[:index] + '.txt'
+        with open(self.fileName,'w') as file:
+            file.write("Step\tTemp\tRampt\tRampR\tHold\tEnd\n")
+            if self.laststep>0:
+                txt = '1\t{0}\t{1}\t{2}\t{3}\t{4}\n'.format(self.step1['T'],self.step1['Rt'],self.step1['Rr'],self.step1['H'],self.step1['E']) 
+                file.write(txt)
+            if self.laststep>1:
+                txt = '2\t{0}\t{1}\t{2}\t{3}\t{4}\n'.format(self.step2['T'],self.step2['Rt'],self.step2['Rr'],self.step2['H'],self.step2['E']) 
+                file.write(txt)
+            if self.laststep>2:
+                txt = '3\t{0}\t{1}\t{2}\t{3}\t{4}\n'.format(self.step3['T'],self.step3['Rt'],self.step3['Rr'],self.step3['H'],self.step3['E']) 
+                file.write(txt)
+
+    def exit_menu(self): # define exit menu button
+        self.actionExit.setShortcut('Ctrl+Q')
+        self.actionExit.setStatusTip('Exit application')
+        try:
+            self.actionExit.triggered.connect(self.eth.s.close)
+        except AttributeError:
+            pass
+        self.actionExit.triggered.connect(QtWidgets.qApp.quit)
+            
+    def com1_menu(self):
+        self.actioncom1.setStatusTip('Set instrument address as \'COM1\'')
+        self.actioncom1.triggered.connect(lambda: self.set_instrument_address('COM1'))
+    
+    def com2_menu(self):
+        self.actioncom2.setStatusTip('Set instrument address as \'COM2\'')
+        self.actioncom2.triggered.connect(lambda: self.set_instrument_address('COM2'))
+    
+    def com3_menu(self):
+        self.actioncom3.setStatusTip('Set instrument address as \'COM3\'')
+        self.actioncom3.triggered.connect(lambda: self.set_instrument_address('COM3'))
+    
+    def com4_menu(self):
+        self.actioncom4.setStatusTip('Set instrument address as \'COM4\'')
+        self.actioncom4.triggered.connect(lambda: self.set_instrument_address('COM4'))
+    
+    def set_instrument_address(self,addr):
+        self.instrument_address = addr
+        self.label_21.setText("<html><head/><body><p><span style=\" font-size:10pt;\">{0}</span></p></body></html>".format(self.instrument_address))
+        
+    def Enter_Manually_menu(self):
+        self.actionEnter_Manually.setStatusTip('Manually enter instrument address (Enter the full address)')
+        self.actionEnter_Manually.triggered.connect(self.manual_entry_dialogue)
+        
+    def manual_entry_dialogue(self):
+        dlg = QtWidgets.QDialog(self)
+        dlg.resize(251, 77)
+        gridLayout = QtWidgets.QGridLayout(dlg)
+        bb = QtWidgets.QDialogButtonBox(dlg)
+        bb.setOrientation(QtCore.Qt.Horizontal)
+        bb.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel|QtWidgets.QDialogButtonBox.Ok)
+        bb.accepted.connect(dlg.accept)
+        bb.rejected.connect(dlg.reject)
+        dlg.setWindowTitle("Manual Entry")
+        l = QtWidgets.QLabel(dlg)
+        l.setText("Enter Instrument Address")
+        le = QtWidgets.QLineEdit(dlg)
+        gridLayout.addWidget(l, 0, 0)
+        gridLayout.addWidget(le, 0, 1)
+        gridLayout.addWidget(bb, 1, 0,1,1)
+        retval = dlg.exec_()
+        name = le.text()
+        if retval == 1:
+            self.set_instrument_address(name)
+    
+    def load_settings(self):
+        self.laststep = 0
+        if self.step1['E'] != 0:
+            self.laststep = 1
+        elif self.step2['E'] !=0:
+            self.laststep = 2
+        else:
+            self.laststep = 3
+            self.step3['E'] = 2 # program is forced to end with reset after step3, if none others are so
+        self.doubleSpinBox.setValue(self.step1['T'])
+        self.doubleSpinBox_2.setValue(self.step1['Rt'])
+        self.Rt_to_Rr(self.current_Temp, self.doubleSpinBox.value(), self.doubleSpinBox_2, self.doubleSpinBox_3)
+        self.doubleSpinBox_4.setValue(self.step1['H'])
+        self.comboBox.setCurrentIndex(self.step1['E'])
+        self.doubleSpinBox_5.setValue(self.step2['T'])
+        self.doubleSpinBox_6.setValue(self.step2['Rt'])
+        self.Rt_to_Rr(self.doubleSpinBox.value(), self.doubleSpinBox_5.value(), self.doubleSpinBox_6, self.doubleSpinBox_7)
+        self.doubleSpinBox_8.setValue(self.step2['H'])
+        self.comboBox_2.setCurrentIndex(self.step2['E'])
+        self.doubleSpinBox_9.setValue(self.step3['T'])
+        self.doubleSpinBox_10.setValue(self.step3['Rt'])
+        self.Rt_to_Rr(self.doubleSpinBox_5.value(), self.doubleSpinBox_9.value(), self.doubleSpinBox_10, self.doubleSpinBox_11)
+        self.doubleSpinBox_12.setValue(self.step3['H'])
+        self.comboBox_3.setCurrentIndex(self.step3['E'])
+        
+    def initialize_plot(self):
+        styles = {'color':'r','font-size':'20px'}
+        self.graphWidget.setLabel('left','Temperature (°C)',**styles)
+        self.graphWidget.setLabel('bottom','Time (H)',**styles)
+        self.graphWidget.addLegend(offset=(180,170))
+        self.graphWidget.showGrid(x=True, y=True)
+        
+    def plot(self):
+        self.graphWidget.clear()
+        pen1 = pg.mkPen(color = (255,0,0), width = 6)
+        self.graphWidget.plot(self.xpoints,self.set_t, name = "Set T path",pen=pen1)
+        
+    def plot_realtime_data(self):
+        self.x = [0]
+        self.t2 = [self.current_Temp] 
+        pen2 = pg.mkPen(color = (0,0,255), width = 2)
+        try:
+            if self.data_line:
+                self.data_line.setData(self.x,self.t2)
+                if self.fed_data_flag:
+                    self.data_line = self.graphWidget.plot(self.x,self.t2,name = "Atual T Path",pen=pen2)
+                else:
+                    self.data_line = self.graphWidget.plot(self.x,self.t2,pen=pen2)
+        except (NameError, AttributeError):
+            self.data_line = self.graphWidget.plot(self.x,self.t2, name = "Actual T path",pen=pen2)
+        self.timer = QtCore.QTimer()
+        self.timecount = QtCore.QElapsedTimer()
+        self.timer.setInterval(2000)
+        self.timer.timeout.connect(self.update_plot_data)
+        self.timer.start()
+        self.timecount.start()
+        
+    def update_plot_data(self):
+        self.t2.append(float(self.eth.read_param('PV')))
+        self.x.append(self.timecount.elapsed()/(1000*3600))
+        self.data_line.setData(self.x,self.t2)
+        self.get_instrument_status()
+        self.display_status()
+        if self.time_left <= 0 and self.program_finish_status == False:
+            self.program_finish_status = True
+            self.statusBar().showMessage('The program has successfully finished. Plotter will run until temperature cools down to 50 °C.')
+        if self.current_Temp < 50 and self.program_finish_status == True:
+            sleep(1)
+            self.stop_program()
+            self.statusBar().showMessage('The program has successfully finished.')
+
+    def initialize_plot_data(self):
+        self.total_time = 0
+        self.npoints = 10
+        if self.laststep > 0:
+            self.x1r = np.linspace(0,self.step1['Rt'],self.npoints)
+            self.t1r = np.linspace(self.current_Temp,self.step1['T'],self.npoints)
+            self.xpoints = self.x1r.copy()
+            self.set_t = self.t1r.copy()
+            self.total_time = self.total_time + self.step1['Rt']
+            if self.step1['H'] > 0:
+                self.x1h = np.linspace(self.x1r[-1],self.x1r[-1]+self.step1['H'],self.npoints)
+                self.t1h = np.linspace(self.t1r[-1],self.step1['T'],self.npoints)
+                self.xpoints = np.append(self.xpoints,self.x1h[1:])
+                self.set_t = np.append(self.set_t,self.t1h[1:]) 
+                self.total_time = self.total_time + self.step1['H']
+            else:
+                self.t1h = [self.t1r[-1]]
+        if self.laststep > 1:
+            self.x2r = np.linspace(self.total_time,self.total_time+self.step2['Rt'],self.npoints)
+            self.xpoints = np.append(self.xpoints,self.x2r[1:])
+            self.t2r = np.linspace(self.t1h[-1],self.step2['T'],self.npoints)
+            self.set_t = np.append(self.set_t,self.t2r[1:])
+            self.total_time = self.total_time + self.step2['Rt']
+            if self.step2['H'] > 0:
+                self.x2h = np.linspace(self.total_time,self.total_time+self.step2['H'],self.npoints)
+                self.xpoints = np.append(self.xpoints,self.x2h[1:])
+                self.t2h = np.linspace(self.t2r[-1],self.step2['T'],self.npoints)
+                self.set_t = np.append(self.set_t,self.t2h[1:])
+                self.total_time = self.total_time + self.step2['H']
+            else:
+                self.t2h = [self.t2r[-1]]
+        if self.laststep > 2:
+            self.x3r = np.linspace(self.total_time,self.total_time+self.step3['Rt'],self.npoints)
+            self.xpoints = np.append(self.xpoints,self.x3r[1:])
+            self.t3r = np.linspace(self.t2h[-1],self.step3['T'],self.npoints)
+            self.set_t = np.append(self.set_t,self.t3r[1:])
+            self.total_time = self.total_time + self.step3['Rt']
+            if self.step3['H'] > 0:
+                self.x3h = np.linspace(self.total_time,self.total_time+self.step3['H'],self.npoints)
+                self.xpoints = np.append(self.xpoints,self.x3h[1:])
+                self.t3h = np.linspace(self.t3r[-1],self.step3['T'],self.npoints)
+                self.set_t = np.append(self.set_t,self.t3h[1:])
+                self.total_time = self.total_time + self.step3['H']
+            else:
+                self.t3h = [self.t3r[-1]]
+            
+    def isfloat(self,value):
+        try:
+            float(value)
+            return True
+        except ValueError:
+            return False
+        
+    def closeEvent(self, event):
+        quit_msg = "Are you sure you want to exit the program?"
+        reply = QtGui.QMessageBox.question(self, 'Message', 
+                     quit_msg, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+        if reply == QtGui.QMessageBox.Yes:
+            try:
+                self.eth.s.close()
+            except AttributeError:
+                pass
+            event.accept()
+        else:
+            event.ignore()
+            
+def main():
+    app = QtWidgets.QApplication(sys.argv)
+    main = MainWindow()
+    main.show()
+    sys.exit(app.exec_())
+
+if __name__ == '__main__':
+    main()
