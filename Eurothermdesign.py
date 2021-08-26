@@ -7,6 +7,7 @@
 # WARNING! All changes made in this file will be lost!
 # TODO: Need to provide more options for choosing correct port address
 # TODO: Automatic scanning and connecting to the right port
+#hello!
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from pyqtgraph import PlotWidget
