@@ -338,6 +338,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.comboBox.setCurrentIndex(2)
         self.comboBox_2.setCurrentIndex(2)
         self.comboBox_3.setCurrentIndex(2)
+        self.step1 = {'T':0.0, 'Rt':0.0,'Rr':0.0,'H':0.0,'E':2}
+        self.step2 = {'T':0.0, 'Rt':0.0,'Rr':0.0,'H':0.0,'E':2}
+        self.step3 = {'T':0.0, 'Rt':0.0,'Rr':0.0,'H':0.0,'E':2}
         
     def Rt_to_Rr(self,t1,t2,db1,db2):
         if db1.value() != 0:
@@ -413,27 +416,37 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
                 for line in lines:
                     if self.isfloat(line.split()[0]):
                         lp = line.split()
-                        params.append([float(lp[1]),float(lp[2]),float(lp[3]),float(lp[4]),int(lp[5])])
+                        params.append([float(lp[1]),float(lp[2]),float(lp[3]),int(lp[4])])
             if params:
+                self.clear_parameters()
                 l = len(params)
                 if l>0:
                     self.step1['T'] = params[0][0]
                     self.step1['Rt'] = params[0][1]
-                    self.step1['Rr'] = params[0][2]
-                    self.step1['H'] = params[0][3]
-                    self.step1['E'] = params[0][4]
+                    self.step1['H'] = params[0][2]
+                    self.step1['E'] = params[0][3]
+                    if l == 1 and self.step1['E'] == 0:
+                        self.step1['E'] = 1
+                    elif self.step1['E'] > 3:
+                        self.step1['E'] = 1
                 if l>1:
                     self.step2['T'] = params[1][0]
                     self.step2['Rt'] = params[1][1]
-                    self.step2['Rr'] = params[1][2]
-                    self.step2['H'] = params[1][3]
-                    self.step2['E'] = params[1][4]
+                    self.step2['H'] = params[1][2]
+                    self.step2['E'] = params[1][3]
+                    if l == 2 and self.step2['E'] == 0:
+                        self.step2['E'] = 1
+                    elif self.step2['E'] > 3:
+                        self.step2['E'] = 1
                 if l>2:
                     self.step3['T'] = params[2][0]
                     self.step3['Rt'] = params[2][1]
-                    self.step3['Rr'] = params[2][2]
-                    self.step3['H'] = params[2][3]
-                    self.step3['E'] = params[2][4]
+                    self.step3['H'] = params[2][2]
+                    self.step3['E'] = params[2][3]
+                    if self.step3['E'] == 0:
+                        self.step3['E'] = 1
+                    elif self.step3['E'] > 3:
+                        self.step3['E'] = 1
                 if l>3:
                     exstep = QtWidgets.QDialog(self)
                     exstep.resize(450, 77)
@@ -465,15 +478,15 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
             index = self.fileName.rindex('.')
             self.fileName = self.fileName[:index] + '.txt'
         with open(self.fileName,'w') as file:
-            file.write("Step\tTemp\tRampt\tRampR\tHold\tEnd\n")
+            file.write("Step\tTemp\tRampt\tHold\tEnd\n")
             if self.laststep>0:
-                txt = '1\t{0}\t{1}\t{2}\t{3}\t{4}\n'.format(self.step1['T'],self.step1['Rt'],self.step1['Rr'],self.step1['H'],self.step1['E']) 
+                txt = '1\t{0}\t{1}\t{2}\t{3}\n'.format(self.step1['T'],self.step1['Rt'],self.step1['H'],self.step1['E']) 
                 file.write(txt)
             if self.laststep>1:
-                txt = '2\t{0}\t{1}\t{2}\t{3}\t{4}\n'.format(self.step2['T'],self.step2['Rt'],self.step2['Rr'],self.step2['H'],self.step2['E']) 
+                txt = '2\t{0}\t{1}\t{2}\t{3}\n'.format(self.step2['T'],self.step2['Rt'],self.step2['H'],self.step2['E']) 
                 file.write(txt)
             if self.laststep>2:
-                txt = '3\t{0}\t{1}\t{2}\t{3}\t{4}\n'.format(self.step3['T'],self.step3['Rt'],self.step3['Rr'],self.step3['H'],self.step3['E']) 
+                txt = '3\t{0}\t{1}\t{2}\t{3}\n'.format(self.step3['T'],self.step3['Rt'],self.step3['H'],self.step3['E']) 
                 file.write(txt)
 
     def exit_menu(self): # define exit menu button
