@@ -1563,7 +1563,7 @@ class Ui_Eurotherm2408(object):
 
     def retranslateUi(self, Eurotherm2408):
         _translate = QtCore.QCoreApplication.translate
-        Eurotherm2408.setWindowTitle(_translate("Eurotherm2408", "MainWindow"))
+        Eurotherm2408.setWindowTitle(_translate("Eurotherm2408", "Eurotherm Temperature Controller"))
         self.comboBox_3.setItemText(0, _translate("Eurotherm2408", "No"))
         self.comboBox_3.setItemText(1, _translate("Eurotherm2408", "Dwell"))
         self.comboBox_3.setItemText(2, _translate("Eurotherm2408", "Reset"))

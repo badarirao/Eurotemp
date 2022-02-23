@@ -16,9 +16,8 @@ from eurotherm import Eurotherm
 import numpy as np
 from serial import SerialException
 from time import sleep
-import os  
-
-
+import os, csv
+from pymeasure.experiment import unique_filename
 
 class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
     def __init__(self, *args, obj=None, **kwargs):
@@ -79,7 +78,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.doubleSpinBox_9.valueChanged['double'].connect(lambda: self.Rt_to_Rr(self.doubleSpinBox_5.value(),self.doubleSpinBox_9.value(),self.doubleSpinBox_10,self.doubleSpinBox_11))
         os.chdir(os.path.join(os.path.expandvars("%userprofile%"),"Desktop"))
         self.program_finish_status = False
-        
+        self.show()
+        self.connect_instrument()
      
     def connect_instrument(self):
         try:
@@ -129,6 +129,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
             return 0
         self.statusBar().showMessage('Feeding the data into the controller. Please wait..')
         self.get_parameters()
+        self.get_instrument_status()
         self.initialize_plot_data()
         self.send_parameters()
         self.fed_data_flag = True
@@ -136,7 +137,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
             self.savefile()
         self.plot()
         self.statusBar().showMessage('Finished loading the program into controller. Click RUN to start!')
-        self.get_instrument_status()
         self.display_status()
     
     def run_program(self):
@@ -208,6 +208,13 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         sleep(1)
         self.get_instrument_status()
         self.display_status()
+        self.save_heating_info()
+    
+    def save_heating_info(self):
+        fname = unique_filename('.',prefix='HeatingData_',ext='csv',index=False,datetimeformat="%Y-%m-%d-%Hh%Mm")
+        with open(fname,'w') as f:
+            writer = csv.writer(f,delimiter = '\t')
+            writer.writerows(zip(self.x,self.t2,self.outputData))
         
     def hold_program(self):
         self.hold = True
@@ -381,14 +388,14 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
 
     def new_menu(self):
         self.actionNew.setShortcut('Ctrl+N')
-        self.actionNew.setStatusTip('Clear all parameters and feed new values')
+        self.actionNew.setStatusTip('Clear all parameters to input fresh values.')
         self.actionNew.triggered.connect(self.open_new_parameter_file)
         
     def open_new_parameter_file(self):
         self.clear_parameters()
-        options = QtWidgets.QFileDialog.Options()
-        options |= QtWidgets.QFileDialog.DontUseNativeDialog
-        self.fileName, _ = QtWidgets.QFileDialog.getSaveFileName(self,"QFileDialog.getSaveFileName()","","All Files (*);;Parameter Files (*.txt)", options=options)
+        #options = QtWidgets.QFileDialog.Options()
+        #options |= QtWidgets.QFileDialog.DontUseNativeDialog
+        #self.fileName, _ = QtWidgets.QFileDialog.getSaveFileName(self,"QFileDialog.getSaveFileName()","","All Files (*);;Parameter Files (*.txt)", options=options)
         
     def open_menu(self):
         self.actionOpen.setShortcut('Ctrl+O')
@@ -562,7 +569,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         
     def plot_realtime_data(self):
         self.x = [0]
-        self.t2 = [self.current_Temp] 
+        self.t2 = [self.current_Temp]
+        self.outputData = [0]
         pen2 = pg.mkPen(color = (0,0,255), width = 2)
         try:
             if self.data_line:
@@ -581,10 +589,15 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.timecount.start()
         
     def update_plot_data(self):
-        self.t2.append(float(self.eth.read_param('PV')))
         self.x.append(self.timecount.elapsed()/(1000*3600))
-        self.data_line.setData(self.x,self.t2)
         self.get_instrument_status()
+        self.outputData.append(self.OP)
+        self.t2.append(self.current_Temp)
+        self.data_line.setData(self.x,self.t2)
+        if self.OP > 50:
+            if (self.set_Temp-self.current_Temp)/self.set_Temp*100 > 5:
+                self.statusBar().showMessage('The there is some problem with heater or thermocouple reading. Heating Stopped.')
+                self.stop_program()
         self.display_status()
         if self.time_left <= 0 and self.program_finish_status == False:
             self.program_finish_status = True
@@ -663,7 +676,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
 def main():
     app = QtWidgets.QApplication(sys.argv)
     main = MainWindow()
-    main.show()
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
