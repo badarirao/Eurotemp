@@ -37,6 +37,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.set_Temp = 0.0
         self.total_time = 0
         self.time_left = 0
+        self.elapsed_time = 0
         self.instrument_address = "COM4"
         self.OP = 0
         self.hold = False
@@ -172,6 +173,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.comboBox_3.setEnabled(False)
         self.initialize_plot_data()
         self.plot()
+        #time_remaining_in_current_segment = float(self.eth.read_param('TS'))/3600
+        # find out what is current segment
+        # so, elapsed time = total_time - time remaining in current segment - time for future segments
+        #self.elapsed_time = round(self.elapsed_time,6)
+        #self.elapsed_time = 0
         self.plot_realtime_data()
         self.statusBar().showMessage('Program is running..')
         self.run_status = True
@@ -227,6 +233,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.comboBox.setEnabled(False)
         self.comboBox_2.setEnabled(False)
         self.comboBox_3.setEnabled(False)
+        self.elapsed_time = 0
         self.plot_realtime_data()
         # send command to instrument to start the heating program
         self.eth.write_param('PC', '2')
@@ -302,7 +309,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.current_Temp = float(self.eth.read_param('PV'))
         self.OP = float(self.eth.read_param('OP'))
         self.set_Temp = float(self.eth.read_param('SL'))
-        self.current_status = int(self.eth.read_param('PC'))
+        self.current_status = int(float(self.eth.read_param('PC')))
         self.time_left = self.total_time - self.x[-1]
         if self.time_left < 0:
             self.time_left = 0
@@ -346,6 +353,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
                 pass
             i = i+1
             s_type = float(self.eth.read_param('$'+ID[i]))
+        self.step1 = self.asteps[0]
+        self.step2 = self.asteps[1]
+        self.step3 = self.asteps[2]
         self.load_settings()
 
     def display_status(self):
@@ -678,7 +688,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
                               name="Set T path", pen=pen1)
 
     def plot_realtime_data(self):
-        self.x = [0]
+        self.x = [self.elapsed_time]
+        print(self.x)
         self.t2 = [self.current_Temp]
         self.outputData = [0]
         pen2 = pg.mkPen(color=(0, 0, 255), width=2)
