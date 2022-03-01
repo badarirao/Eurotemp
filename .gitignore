@@ -122,5 +122,8 @@ dmypy.json
 # ignore batch file
 *.bat
 
-#ignore icon file
+# ignore icon file
 *.ico
+
+# ignore pdf files
+*.pdf
