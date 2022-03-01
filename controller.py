@@ -37,7 +37,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.set_Temp = 0.0
         self.total_time = 0
         self.time_left = 0
-        self.elapsed_time = 0
         self.instrument_address = "COM4"
         self.OP = 0
         self.hold = False
@@ -171,13 +170,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.comboBox.setEnabled(False)
         self.comboBox_2.setEnabled(False)
         self.comboBox_3.setEnabled(False)
-        self.initialize_plot_data()
+        self.initialize_plot_data(continuation=True)
         self.plot()
-        #time_remaining_in_current_segment = float(self.eth.read_param('TS'))/3600
-        # find out what is current segment
         # so, elapsed time = total_time - time remaining in current segment - time for future segments
-        #self.elapsed_time = round(self.elapsed_time,6)
-        #self.elapsed_time = 0
+        #program_remaining_time = float(self.eth.read_param('TP'))
+        #print(self.eth.read_param('TP'),self.total_time)
+        #self.elapsed_time = round(self.total_time - program_remaining_time,6)
         self.plot_realtime_data()
         self.statusBar().showMessage('Program is running..')
         self.run_status = True
@@ -233,7 +231,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.comboBox.setEnabled(False)
         self.comboBox_2.setEnabled(False)
         self.comboBox_3.setEnabled(False)
-        self.elapsed_time = 0
         self.plot_realtime_data()
         # send command to instrument to start the heating program
         self.eth.write_param('PC', '2')
@@ -688,8 +685,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
                               name="Set T path", pen=pen1)
 
     def plot_realtime_data(self):
-        self.x = [self.elapsed_time]
-        print(self.x)
+        self.x = [0]
         self.t2 = [self.current_Temp]
         self.outputData = [0]
         pen2 = pg.mkPen(color=(0, 0, 255), width=2)
@@ -713,7 +709,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.timecount.start()
 
     def update_plot_data(self):
-        self.x.append(self.timecount.elapsed()/(1000*3600))
+        self.x.append(self.x[0] + self.timecount.elapsed()/(1000*3600))
         self.get_instrument_status()
         self.outputData.append(self.OP)
         self.t2.append(self.current_Temp)
@@ -733,61 +729,138 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
             self.stop_program()
             self.statusBar().showMessage('The program has successfully finished.')
 
-    def initialize_plot_data(self):
+    def initialize_plot_data(self,continuation = False):
         self.total_time = 0
         self.npoints = 10
+        seg = 0
+        if continuation:
+            # get current segment that is running
+            seg = int(float(self.eth.read_param('SN')))
         if self.laststep > 0:
-            self.x1r = np.linspace(0, self.step1['Rt'], self.npoints)
-            self.t1r = np.linspace(
-                self.current_Temp, self.step1['T'], self.npoints)
+            time_remaining = self.step1['Rt']
+            if seg < 1:
+                self.x1r = np.linspace(0, self.step1['Rt'], self.npoints)
+                self.t1r = np.linspace(
+                    self.current_Temp, self.step1['T'], self.npoints)
+            elif seg == 1:
+                time_remaining = round(float(self.eth.read_param('TS'))/3600,6)
+                self.x1r = np.linspace(0,time_remaining, self.npoints)
+                self.t1r = np.linspace(
+                    self.current_Temp, self.step1['T'], self.npoints)
+            else:
+                self.x1r = []
+                self.t1r = []
             self.xpoints = self.x1r.copy()
             self.set_t = self.t1r.copy()
-            self.total_time = self.total_time + self.step1['Rt']
+            self.total_time = self.total_time + time_remaining
             if self.step1['H'] > 0:
-                self.x1h = np.linspace(
-                    self.x1r[-1], self.x1r[-1]+self.step1['H'], self.npoints)
-                self.t1h = np.linspace(
-                    self.t1r[-1], self.step1['T'], self.npoints)
+                time_remaining = self.step1['H']
+                if seg < 2:
+                    self.x1h = np.linspace(
+                        self.x1r[-1], self.x1r[-1]+self.step1['H'], self.npoints)
+                    self.t1h = np.linspace(
+                        self.t1r[-1], self.step1['T'], self.npoints)
+                elif seg == 2:
+                    time_remaining = round(float(self.eth.read_param('TS'))/3600,6)
+                    self.x1h = np.linspace(
+                        0, time_remaining, self.npoints)
+                    self.x1h = np.insert(self.x1h,0,0)
+                    self.t1h = np.linspace(
+                        self.step1['T'], self.step1['T'], self.npoints)
+                    self.t1h = np.insert(self.t1h,0,0)
+                else:
+                    self.x1h = []
+                    self.t1h = []
                 self.xpoints = np.append(self.xpoints, self.x1h[1:])
                 self.set_t = np.append(self.set_t, self.t1h[1:])
-                self.total_time = self.total_time + self.step1['H']
+                self.total_time = self.total_time + time_remaining
             else:
                 self.t1h = [self.t1r[-1]]
         if self.laststep > 1:
-            self.x2r = np.linspace(
-                self.total_time, self.total_time+self.step2['Rt'], self.npoints)
+            time_remaining = self.step2['Rt']
+            if seg <3:
+                self.x2r = np.linspace(
+                    self.total_time, self.total_time+self.step2['Rt'], self.npoints)
+                self.t2r = np.linspace(self.t1h[-1], self.step2['T'], self.npoints)
+            elif seg == 3:
+                time_remaining = round(float(self.eth.read_param('TS'))/3600,6)
+                self.x2r = np.linspace(
+                    0, time_remaining, self.npoints)
+                self.x2r = np.insert(self.x2r,0,0)
+                self.t2r = np.linspace(self.current_Temp, self.step2['T'], self.npoints)
+                self.t2r = np.insert(self.t2r,0,0)
+            else:
+                self.x2r = []
+                self.t2r = []
             self.xpoints = np.append(self.xpoints, self.x2r[1:])
-            self.t2r = np.linspace(self.t1h[-1], self.step2['T'], self.npoints)
             self.set_t = np.append(self.set_t, self.t2r[1:])
-            self.total_time = self.total_time + self.step2['Rt']
+            self.total_time = self.total_time + time_remaining
             if self.step2['H'] > 0:
-                self.x2h = np.linspace(
-                    self.total_time, self.total_time+self.step2['H'], self.npoints)
+                time_remaining = self.step2['H']
+                if seg < 4:
+                    self.x2h = np.linspace(
+                        self.total_time, self.total_time+self.step2['H'], self.npoints)
+                    self.t2h = np.linspace(
+                        self.t2r[-1], self.step2['T'], self.npoints)
+                elif seg == 4:
+                    time_remaining = round(float(self.eth.read_param('TS'))/3600,6)
+                    self.x2h = np.linspace(
+                        0, time_remaining, self.npoints)
+                    self.x2h = np.insert(self.x2h,0,0)
+                    self.t2h = np.linspace(
+                        self.step2['T'], self.step2['T'], self.npoints)
+                    self.t2h = np.insert(self.t2h,0,0)
+                else:
+                    self.x2h = []
+                    self.t2h = []
                 self.xpoints = np.append(self.xpoints, self.x2h[1:])
-                self.t2h = np.linspace(
-                    self.t2r[-1], self.step2['T'], self.npoints)
                 self.set_t = np.append(self.set_t, self.t2h[1:])
-                self.total_time = self.total_time + self.step2['H']
+                self.total_time = self.total_time + time_remaining
             else:
                 self.t2h = [self.t2r[-1]]
         if self.laststep > 2:
-            self.x3r = np.linspace(
-                self.total_time, self.total_time+self.step3['Rt'], self.npoints)
+            time_remaining = self.step3['Rt']
+            if seg < 5:
+                self.x3r = np.linspace(
+                    self.total_time, self.total_time+self.step3['Rt'], self.npoints)
+                self.t3r = np.linspace(self.t2h[-1], self.step3['T'], self.npoints)
+            elif seg == 5:
+                time_remaining = round(float(self.eth.read_param('TS'))/3600,6)
+                self.x3r = np.linspace(
+                    0, time_remaining, self.npoints)
+                self.x3r = np.insert(self.x3r,0,0)
+                self.t3r = np.linspace(self.current_Temp, self.step3['T'], self.npoints)
+                self.t3r = np.insert(self.t3r,0,0)
+            else:
+                self.x3r = []
+                self.t3r = []
             self.xpoints = np.append(self.xpoints, self.x3r[1:])
-            self.t3r = np.linspace(self.t2h[-1], self.step3['T'], self.npoints)
             self.set_t = np.append(self.set_t, self.t3r[1:])
-            self.total_time = self.total_time + self.step3['Rt']
+            self.total_time = self.total_time + time_remaining
             if self.step3['H'] > 0:
-                self.x3h = np.linspace(
-                    self.total_time, self.total_time+self.step3['H'], self.npoints)
+                time_remaining = self.step3['H']
+                if seg < 6:
+                    self.x3h = np.linspace(
+                        self.total_time, self.total_time+self.step3['H'], self.npoints)
+                    self.t3h = np.linspace(
+                        self.t3r[-1], self.step3['T'], self.npoints)
+                elif seg == 6:
+                    time_remaining = round(float(self.eth.read_param('TS'))/3600,6)
+                    self.x3h = np.linspace(
+                        0, time_remaining, self.npoints)
+                    self.x3h = np.insert(self.x3h,0,0)
+                    self.t3h = np.linspace(
+                        self.step3['T'], self.step3['T'], self.npoints)
+                    self.t3h = np.insert(self.t3h,0,0)
+                else:
+                    self.x3h = []
+                    self.t3h = []
                 self.xpoints = np.append(self.xpoints, self.x3h[1:])
-                self.t3h = np.linspace(
-                    self.t3r[-1], self.step3['T'], self.npoints)
                 self.set_t = np.append(self.set_t, self.t3h[1:])
-                self.total_time = self.total_time + self.step3['H']
+                self.total_time = self.total_time + time_remaining
             else:
                 self.t3h = [self.t3r[-1]]
-
+    
     def isfloat(self, value):
         try:
             float(value)
