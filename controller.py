@@ -325,7 +325,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
                 rate = float(self.eth.read_param('d'+ID[i]))
                 self.asteps[st]['Rt'] = (
                     self.asteps[st]['T']-self.current_Temp)/(60*rate)
-                if float(self.eth.read_param('$'+ID[i+1])) == 0:
+                next_stype = float(self.eth.read_param('$'+ID[i+1]))
+                if next_stype in (1,2):
+                    self.asteps[st]['H'] = 0
+                    self.asteps[st]['E'] = 0
+                    st = st+1
+                elif next_stype == 0:
                     self.asteps[st]['E'] = int(
                         float(self.eth.read_param('p'+ID[i+1]))+1)
                     break
@@ -333,7 +338,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
                 self.asteps[st]['T'] = float(self.eth.read_param('s'+ID[i]))
                 self.asteps[st]['Rt'] = float(
                     self.eth.read_param('d'+ID[i]))/60
-                if float(self.eth.read_param('$'+ID[i+1])) == 0:
+                next_stype = float(self.eth.read_param('$'+ID[i+1]))
+                if next_stype in (1,2):
+                    self.asteps[st]['H'] = 0
+                    self.asteps[st]['E'] = 0
+                    st = st+1
+                elif next_stype == 0:
                     self.asteps[st]['E'] = int(
                         float(self.eth.read_param('p'+ID[i+1]))+1)
                     break
@@ -378,30 +388,33 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         if self.run_status == True:
             try:
                 self.prestep = self.stepno
-                n = int(float(self.eth.read_param('SN')))
-                if n % 2 == 0:
-                    self.stepno = int(n/2)
+                n = int(float(self.eth.read_param('SN'))) # segment number
+                stype = int(float(self.eth.read_param('CS'))) # segment type
+                if stype == 3:
+                    if n % 2 == 0:
+                        self.stepno = int(n/2)
+                    else:
+                        self.stepno = int(n/2) + 1
+                elif stype in (1,2) and n%2 == 0:
+                    self.stepno = n
                 else:
-                    self.stepno = int(n/2) + 1
+                    self.stepno = int(n/2)+1
                 if self.prestep != self.stepno:
                     if self.stepno == 1:
                         self.label_2.setStyleSheet(
                             "background-color: lightgreen")
+                        self.label_3.setStyleSheet("")
+                        self.label_4.setStyleSheet("")
                     elif self.stepno == 2:
                         self.label_3.setStyleSheet(
                             "background-color: lightgreen")
+                        self.label_2.setStyleSheet("")
+                        self.label_4.setStyleSheet("")
                     elif self.stepno == 3:
                         self.label_4.setStyleSheet(
                             "background-color: lightgreen")
-                    elif self.stepno == 4:
-                        self.label_5.setStyleSheet(
-                            "background-color: lightgreen")
-                    elif self.stepno == 5:
-                        self.label_10.setStyleSheet(
-                            "background-color: lightgreen")
-                    elif self.stepno == 6:
-                        self.label_11.setStyleSheet(
-                            "background-color: lightgreen")
+                        self.label_2.setStyleSheet("")
+                        self.label_2.setStyleSheet("")
             except TypeError:
                 pass
 
@@ -736,6 +749,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         if continuation:
             # get current segment that is running
             seg = int(float(self.eth.read_param('SN')))
+            stype = int(float(self.eth.read_param('CS')))
+            if stype == 1 and seg%2 == 0:
+                seg = seg+1
         if self.laststep > 0:
             time_remaining = self.step1['Rt']
             if seg < 1:
@@ -775,7 +791,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
                 self.set_t = np.append(self.set_t, self.t1h[1:])
                 self.total_time = self.total_time + time_remaining
             else:
-                self.t1h = [self.t1r[-1]]
+                self.t1h = [self.step1['T']]
         if self.laststep > 1:
             time_remaining = self.step2['Rt']
             if seg <3:
@@ -817,7 +833,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
                 self.set_t = np.append(self.set_t, self.t2h[1:])
                 self.total_time = self.total_time + time_remaining
             else:
-                self.t2h = [self.t2r[-1]]
+                self.t2h = [self.step2['T']]
         if self.laststep > 2:
             time_remaining = self.step3['Rt']
             if seg < 5:
@@ -859,7 +875,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
                 self.set_t = np.append(self.set_t, self.t3h[1:])
                 self.total_time = self.total_time + time_remaining
             else:
-                self.t3h = [self.t3r[-1]]
+                self.t3h = [self.step3['T']]
     
     def isfloat(self, value):
         try:
