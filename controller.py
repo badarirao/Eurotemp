@@ -272,11 +272,13 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.save_heating_info()
 
     def save_heating_info(self):
-        fname = unique_filename('.', prefix='HeatingData_', ext='csv',
+        fname = unique_filename('C:\HeatingData', prefix='HeatingData_', ext='csv',
                                 index=False, datetimeformat="%Y-%m-%d-%Hh%Mm")
-        with open(fname, 'w') as f:
-            writer = csv.writer(f, delimiter='\t')
-            writer.writerows(zip(self.x, self.t2, self.outputData))
+        with open(fname, 'w', newline='') as f:
+            f.write("Elapsed Time(s), Temperature(°C), Output(%)\n")
+            writer = csv.writer(f, delimiter=', ')
+            timeData = np.round(np.array(self.x)*3600,2)
+            writer.writerows(zip(timeData, self.t2, self.outputData))
 
     def hold_program(self):
         self.hold = True
