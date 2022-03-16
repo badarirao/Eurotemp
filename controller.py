@@ -6,9 +6,10 @@ Created on Tue Dec 15 16:11:19 2020
 
 @author: Badari
 """
-# TODO: Need to check for errors
 #TODO: Need to check for errors
 #TODO: If heater is already running when program started, the software should show the progress of heating program.
+# Add documentation
+# Update GUI interface to set temperature manually
 
 import sys
 from PyQt5 import QtWidgets, QtCore, QtGui
