@@ -277,8 +277,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         fname = unique_filename('C:\HeatingData', prefix='HeatingData_', ext='csv',
                                 index=False, datetimeformat="%Y-%m-%d-%Hh%Mm")
         with open(fname, 'w', newline='') as f:
-            f.write("Elapsed Time(s), Temperature(°C), Output(%)\n")
-            writer = csv.writer(f, delimiter=', ')
+            f.write("Elapsed Time(s)\tTemperature(°C)\tOutput(%)\n")
+            writer = csv.writer(f, delimiter='\t')
             timeData = np.round(np.array(self.x)*3600,2)
             writer.writerows(zip(timeData, self.t2, self.outputData))
 
