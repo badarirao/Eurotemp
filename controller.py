@@ -273,6 +273,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.save_heating_info()
 
     def save_heating_info(self):
+        #save heating data to file
         fname = unique_filename('C:\HeatingData', prefix='HeatingData_', ext='csv',
                                 index=False, datetimeformat="%Y-%m-%d-%Hh%Mm")
         with open(fname, 'w', newline='') as f:
