@@ -9,7 +9,8 @@ Created on Tue Dec 15 16:11:19 2020
 #TODO: Need to check for errors
 #TODO: If heater is already running when program started, the software should show the progress of heating program.
 # Add documentation
-# Update GUI interface to set temperature manually
+# TODO: Update GUI interface to set temperature manually
+# TODO: There is some problem in either loading previously saved program in instrument, or saving into instrument using feed_program command. It it not saved maybe..
 
 import sys
 from PyQt5 import QtWidgets, QtCore, QtGui
