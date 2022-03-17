@@ -208,8 +208,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
             self.connect_instrument()
         if self.instrument_connect_flag == False:
             return 0
-        if self.fed_data_flag == False:
-            self.feed_parameters()
+        #if self.fed_data_flag == False:
+        self.feed_parameters()
         self.program_finish_status = False
         self.pushButton_2.setEnabled(True)
         self.pushButton_3.setEnabled(True)
@@ -470,12 +470,14 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         else:
             self.laststep = 3
             self.step3['E'] = 2
+        self.asteps = [self.step1, self.step2, self.step3]
 
     def send_parameters(self):
         ID = ['1', '2', '3', '4', '5', '6', '7', '8',
               '9', ':', ';', '<', '=', '>', '?', '@']
         ls = 0
         i = 0
+        print(self.asteps)
         while self.laststep > ls:
             self.eth.write_param('$'+ID[i], '2')
             self.eth.write_param('s'+ID[i], str(self.asteps[ls]['T']))
@@ -562,6 +564,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
                         "Only three steps can be loaded in this program. Remaining steps are ignored!")
                     hl.addWidget(l)
                     exstep.exec_()
+            self.asteps = [self.step1, self.step2, self.step3]
             self.load_settings()
 
     def save_menu(self):
