@@ -208,7 +208,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
             self.connect_instrument()
         if self.instrument_connect_flag == False:
             return 0
-        #if self.fed_data_flag == False:
         self.feed_parameters()
         self.program_finish_status = False
         self.pushButton_2.setEnabled(True)
@@ -494,13 +493,48 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
             i = i+1
 
     def new_menu(self):
+        # Suppose you want to start a new program, and want the heater to continue 
+        # directly from the current temperature, this function is useful.
         self.actionNew.setShortcut('Ctrl+N')
         self.actionNew.setStatusTip(
-            'Clear all parameters to input fresh values.')
+            'Enter and run new heating parameters, which will instantly take over from the current heating program')
         self.actionNew.triggered.connect(self.open_new_parameter_file)
 
     def open_new_parameter_file(self):
         self.clear_parameters()
+        # prepare the software to input new values.
+        # Note: Even though the software has stopped, the heater program is still running in the instrument
+        # Once Run is clicked, the newly fed program will take over, thereby resulting in no lag in the program
+        if self.run_status == True:
+            self.pushButton.setEnabled(True)
+            self.pushButton_4.setEnabled(True)
+            self.pushButton_5.setEnabled(True)
+            self.pushButton_7.setEnabled(True)
+            self.doubleSpinBox.setEnabled(True)
+            self.doubleSpinBox_2.setEnabled(True)
+            self.doubleSpinBox_3.setEnabled(True)
+            self.doubleSpinBox_4.setEnabled(True)
+            self.doubleSpinBox_5.setEnabled(True)
+            self.doubleSpinBox_6.setEnabled(True)
+            self.doubleSpinBox_7.setEnabled(True)
+            self.doubleSpinBox_8.setEnabled(True)
+            self.doubleSpinBox_9.setEnabled(True)
+            self.doubleSpinBox_10.setEnabled(True)
+            self.doubleSpinBox_11.setEnabled(True)
+            self.doubleSpinBox_12.setEnabled(True)
+            self.comboBox.setEnabled(True)
+            self.comboBox_2.setEnabled(True)
+            self.comboBox_3.setEnabled(True)
+            self.pushButton_2.setEnabled(False)
+            self.pushButton_2.setEnabled(False)
+            self.pushButton_3.setEnabled(False)
+            self.pushButton_4.setEnabled(False)
+            self.timer.stop()
+            self.run_status = False
+            self.statusBar().showMessage('Enter new parameters and click run. If you want to go back to the heater program, restart the software.')
+            #self.get_instrument_status()
+            #self.display_status()
+            self.save_heating_info()
         #options = QtWidgets.QFileDialog.Options()
         #options |= QtWidgets.QFileDialog.DontUseNativeDialog
         #self.fileName, _ = QtWidgets.QFileDialog.getSaveFileName(self,"QFileDialog.getSaveFileName()","","All Files (*);;Parameter Files (*.txt)", options=options)
