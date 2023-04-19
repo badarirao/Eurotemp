@@ -204,6 +204,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
 
     def run_program(self):
         # run the program only if the instrument is successfully connected
+        #TODO: if program is already running, stop it, and then start.
         if self.instrument_connect_flag == False:
             self.connect_instrument()
         if self.instrument_connect_flag == False:
@@ -277,10 +278,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         fname = unique_filename('C:\HeatingData', prefix='HeatingData_', ext='csv',
                                 index=False, datetimeformat="%Y-%m-%d-%Hh%Mm")
         with open(fname, 'w', newline='') as f:
-            f.write("Elapsed Time(s)\tTemperature(°C)\tOutput(%)\n")
+            f.write("Elapsed Time(s)\tSet Temperature(°C)\tTemperature(°C)\tOutput(%)\n")
             writer = csv.writer(f, delimiter='\t')
             timeData = np.round(np.array(self.x)*3600,2)
-            writer.writerows(zip(timeData, self.t2, self.outputData))
+            writer.writerows(zip(timeData, self.set_t, self.t2, self.outputData))
 
     def hold_program(self):
         self.hold = True
