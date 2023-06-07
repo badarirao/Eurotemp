@@ -19,7 +19,7 @@ from Eurothermdesign import Ui_Eurotherm2408
 from eurotherm import Eurotherm
 import numpy as np
 from serial import SerialException
-from time import sleep
+from time import sleep, time
 import os
 import csv
 from pymeasure.experiment import unique_filename
@@ -29,7 +29,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
     def __init__(self, *args, obj=None, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
         # load the UI page
+        self.fname = None
         self.fed_data_flag = False
+        self.program_start_time = time()
         self.fileName = None
         self.instrument_connect_flag = False
         self.setupUi(self)
@@ -238,6 +240,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.eth.write_param('PC', '2')
         self.statusBar().showMessage('Program is running..')
         self.run_status = True
+        self.program_start_time = time()
+        with open(self.fname, 'a', newline='') as f:
+            f.write("\n")
         self.fed_data_flag = False
 
     def stop_program(self):
@@ -271,17 +276,17 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         sleep(1)
         self.get_instrument_status()
         self.display_status()
-        self.save_heating_info()
+        #self.save_heating_info()
 
-    def save_heating_info(self):
+    def save_heating_info(self, elapsed_time, set_Temp, current_Temp, OP):
         #save heating data to file
-        fname = unique_filename('C:\HeatingData', prefix='HeatingData_', ext='csv',
+        if self.fname == None:
+            self.fname = unique_filename('C:\HeatingData', prefix='HeatingData_', ext='csv',
                                 index=False, datetimeformat="%Y-%m-%d-%Hh%Mm")
-        with open(fname, 'w', newline='') as f:
-            f.write("Elapsed Time(s)\tSet Temperature(°C)\tTemperature(°C)\tOutput(%)\n")
-            writer = csv.writer(f, delimiter='\t')
-            timeData = np.round(np.array(self.x)*3600,2)
-            writer.writerows(zip(timeData, self.set_t, self.t2, self.outputData))
+            with open(self.fname, 'w', newline='') as f:
+                f.write("Elapsed Time(s),Set Temperature(°C),Temperature(°C),Output(%)")
+        with open(self.fname, 'a', newline='') as f:
+            f.write(f"\n{elapsed_time},{set_Temp},{current_Temp},{OP}")
 
     def hold_program(self):
         self.hold = True
@@ -389,6 +394,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         # display instrument address
         self.label_21.setText(
             "<html><head/><body><p><span style=\" font-size:10pt;\">{0}</span></p></body></html>".format(self.instrument_address))
+        elapsed_time = round(time() - self.program_start_time,2)
+        self.save_heating_info(elapsed_time, self.set_Temp, self.current_Temp, self.OP)
         # highlight the current step number
         if self.run_status == True:
             try:
@@ -535,7 +542,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
             self.statusBar().showMessage('Enter new parameters and click run. If you want to go back to the heater program, restart the software.')
             #self.get_instrument_status()
             #self.display_status()
-            self.save_heating_info()
+            #self.save_heating_info()
         #options = QtWidgets.QFileDialog.Options()
         #options |= QtWidgets.QFileDialog.DontUseNativeDialog
         #self.fileName, _ = QtWidgets.QFileDialog.getSaveFileName(self,"QFileDialog.getSaveFileName()","","All Files (*);;Parameter Files (*.txt)", options=options)
