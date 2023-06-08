@@ -7,12 +7,13 @@
 # WARNING! All changes made in this file will be lost!
 # TODO: Need to provide more options for choosing correct port address
 # TODO: Automatic scanning and connecting to the right port
-#hello!
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from pyqtgraph import PlotWidget
 import pyqtgraph as pg
 
+
+# noinspection PyAttributeOutsideInit
 class Ui_Eurotherm2408(object):
     def setupUi(self, Eurotherm2408):
         Eurotherm2408.setObjectName("Eurotherm2408")
@@ -1420,78 +1421,78 @@ class Ui_Eurotherm2408(object):
         self.label = QtWidgets.QLabel(self.layoutWidget1)
         self.label.setFrameShape(QtWidgets.QFrame.NoFrame)
         self.label.setFrameShadow(QtWidgets.QFrame.Plain)
-        self.label.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
+        self.label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignTrailing | QtCore.Qt.AlignVCenter)
         self.label.setObjectName("label")
         self.gridLayout_3.addWidget(self.label, 0, 0, 1, 1)
         self.label_19 = QtWidgets.QLabel(self.layoutWidget1)
         self.label_19.setFrameShape(QtWidgets.QFrame.NoFrame)
         self.label_19.setFrameShadow(QtWidgets.QFrame.Plain)
-        self.label_19.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
+        self.label_19.setAlignment(QtCore.Qt.AlignLeading | QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
         self.label_19.setObjectName("label_19")
         self.gridLayout_3.addWidget(self.label_19, 0, 1, 1, 1)
         self.label_12 = QtWidgets.QLabel(self.layoutWidget1)
         self.label_12.setFrameShape(QtWidgets.QFrame.NoFrame)
         self.label_12.setFrameShadow(QtWidgets.QFrame.Plain)
-        self.label_12.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
+        self.label_12.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignTrailing | QtCore.Qt.AlignVCenter)
         self.label_12.setObjectName("label_12")
         self.gridLayout_3.addWidget(self.label_12, 1, 0, 1, 1)
         self.label_20 = QtWidgets.QLabel(self.layoutWidget1)
         self.label_20.setFrameShape(QtWidgets.QFrame.NoFrame)
         self.label_20.setFrameShadow(QtWidgets.QFrame.Plain)
-        self.label_20.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
+        self.label_20.setAlignment(QtCore.Qt.AlignLeading | QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
         self.label_20.setObjectName("label_20")
         self.gridLayout_3.addWidget(self.label_20, 1, 1, 1, 1)
         self.label_13 = QtWidgets.QLabel(self.layoutWidget1)
         self.label_13.setFrameShape(QtWidgets.QFrame.NoFrame)
         self.label_13.setFrameShadow(QtWidgets.QFrame.Plain)
-        self.label_13.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
+        self.label_13.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignTrailing | QtCore.Qt.AlignVCenter)
         self.label_13.setObjectName("label_13")
         self.gridLayout_3.addWidget(self.label_13, 2, 0, 1, 1)
         self.label_18 = QtWidgets.QLabel(self.layoutWidget1)
         self.label_18.setFrameShape(QtWidgets.QFrame.NoFrame)
         self.label_18.setFrameShadow(QtWidgets.QFrame.Plain)
-        self.label_18.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
+        self.label_18.setAlignment(QtCore.Qt.AlignLeading | QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
         self.label_18.setObjectName("label_18")
         self.gridLayout_3.addWidget(self.label_18, 2, 1, 1, 1)
         self.label_14 = QtWidgets.QLabel(self.layoutWidget1)
         self.label_14.setFrameShape(QtWidgets.QFrame.NoFrame)
         self.label_14.setFrameShadow(QtWidgets.QFrame.Plain)
-        self.label_14.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
+        self.label_14.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignTrailing | QtCore.Qt.AlignVCenter)
         self.label_14.setObjectName("label_14")
         self.gridLayout_3.addWidget(self.label_14, 3, 0, 1, 1)
         self.label_17 = QtWidgets.QLabel(self.layoutWidget1)
         self.label_17.setFrameShape(QtWidgets.QFrame.NoFrame)
         self.label_17.setFrameShadow(QtWidgets.QFrame.Plain)
-        self.label_17.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
+        self.label_17.setAlignment(QtCore.Qt.AlignLeading | QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
         self.label_17.setObjectName("label_17")
         self.gridLayout_3.addWidget(self.label_17, 3, 1, 1, 1)
         self.label_15 = QtWidgets.QLabel(self.layoutWidget1)
         self.label_15.setFrameShape(QtWidgets.QFrame.NoFrame)
         self.label_15.setFrameShadow(QtWidgets.QFrame.Plain)
-        self.label_15.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
+        self.label_15.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignTrailing | QtCore.Qt.AlignVCenter)
         self.label_15.setObjectName("label_15")
         self.gridLayout_3.addWidget(self.label_15, 4, 0, 1, 1)
         self.label_16 = QtWidgets.QLabel(self.layoutWidget1)
         self.label_16.setFrameShape(QtWidgets.QFrame.NoFrame)
         self.label_16.setFrameShadow(QtWidgets.QFrame.Plain)
-        self.label_16.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
+        self.label_16.setAlignment(QtCore.Qt.AlignLeading | QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
         self.label_16.setObjectName("label_16")
         self.gridLayout_3.addWidget(self.label_16, 4, 1, 1, 1)
         self.label_22 = QtWidgets.QLabel(self.layoutWidget1)
         self.label_22.setFrameShape(QtWidgets.QFrame.NoFrame)
         self.label_22.setFrameShadow(QtWidgets.QFrame.Plain)
-        self.label_22.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
+        self.label_22.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignTrailing | QtCore.Qt.AlignVCenter)
         self.label_22.setObjectName("label_22")
         self.gridLayout_3.addWidget(self.label_22, 5, 0, 1, 1)
         self.label_21 = QtWidgets.QLabel(self.layoutWidget1)
         self.label_21.setFrameShape(QtWidgets.QFrame.NoFrame)
         self.label_21.setFrameShadow(QtWidgets.QFrame.Plain)
-        self.label_21.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
+        self.label_21.setAlignment(QtCore.Qt.AlignLeading | QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
         self.label_21.setObjectName("label_21")
         self.gridLayout_3.addWidget(self.label_21, 5, 1, 1, 1)
         self.gridLayout_4.addWidget(self.splitter, 0, 2, 1, 1)
-        self.graphWidget = PlotWidget(self.centralwidget,viewBox=pg.ViewBox(border = pg.mkPen(color='k',width = 2)))
-        self.graphWidget.setBackground((255,182,193,25))
+        self.graphWidget = PlotWidget(self.centralwidget, viewBox=pg.ViewBox(border=pg.mkPen(color='k', width=2)))
+        self.graphWidget.setBackground((255, 182, 193, 25))
         self.graphWidget.setObjectName("graphWidget")
         self.gridLayout_4.addWidget(self.graphWidget, 0, 0, 1, 2)
         Eurotherm2408.setCentralWidget(self.centralwidget)
@@ -1512,7 +1513,7 @@ class Ui_Eurotherm2408(object):
         self.actionOpen.setObjectName("actionOpen")
         self.actionSave = QtWidgets.QAction(Eurotherm2408)
         self.actionSave.setObjectName("actionSave")
-        self.actionExit = QtWidgets.QAction('&Exit',Eurotherm2408)
+        self.actionExit = QtWidgets.QAction('&Exit', Eurotherm2408)
         self.actionExit.setObjectName("actionExit")
         self.actioncom1 = QtWidgets.QAction(Eurotherm2408)
         self.actioncom1.setObjectName("actioncom1")
@@ -1576,46 +1577,111 @@ class Ui_Eurotherm2408(object):
         self.comboBox_2.setItemText(1, _translate("Eurotherm2408", "Dwell"))
         self.comboBox_2.setItemText(2, _translate("Eurotherm2408", "Reset"))
         self.comboBox_2.setItemText(3, _translate("Eurotherm2408", "Stop"))
-        self.label_3.setText(_translate("Eurotherm2408", "<html><head/><body><p><span style=\" font-size:10pt; font-weight:600;\">STEP2</span></p></body></html>"))
-        self.label_4.setText(_translate("Eurotherm2408", "<html><head/><body><p><span style=\" font-size:10pt; font-weight:600;\">STEP3</span></p></body></html>"))
-        self.label_8.setToolTip(_translate("Eurotherm2408", "<html><head/><body><p>set the temperature hold duration</p></body></html>"))
-        self.label_8.setText(_translate("Eurotherm2408", "<html><head/><body><p align=\"center\"><span style=\" font-size:10pt; font-weight:600;\">Hold Time (H)</span></p></body></html>"))
-        self.label_23.setToolTip(_translate("Eurotherm2408", "<html><head/><body><p>Select &quot;No&quot; if you want to continue to next step. Else select the end program type (reset, dwell or stop)</p></body></html>"))
-        self.label_23.setText(_translate("Eurotherm2408", "<html><head/><body><p align=\"center\"><span style=\" font-size:10pt; font-weight:600;\">END Type</span></p></body></html>"))
-        self.label_2.setText(_translate("Eurotherm2408", "<html><head/><body><p><span style=\" font-size:10pt; font-weight:600;\">STEP1</span></p></body></html>"))
-        self.label_9.setToolTip(_translate("Eurotherm2408", "<html><head/><body><p>set heating rate ( set either one of ramp-time or ramp-rate)</p></body></html>"))
-        self.label_9.setText(_translate("Eurotherm2408", "<html><head/><body><p align=\"center\"><span style=\" font-size:10pt; font-weight:600;\">Ramp Rate (℃/min)</span></p></body></html>"))
-        self.label_6.setToolTip(_translate("Eurotherm2408", "<html><head/><body><p>Set the target temperature for each step</p></body></html>"))
-        self.label_6.setText(_translate("Eurotherm2408", "<html><head/><body><p align=\"center\"><span style=\" font-size:10pt; font-weight:600;\">Temperature (℃)</span></p></body></html>"))
-        self.label_7.setToolTip(_translate("Eurotherm2408", "<html><head/><body><p>Set total time in which the target temperature should reach. ( set either one of ramp-time or ramp-rate)</p></body></html>"))
-        self.label_7.setText(_translate("Eurotherm2408", "<html><head/><body><p align=\"center\"><span style=\" font-size:10pt; font-weight:600;\">Ramp time (H)</span></p></body></html>"))
-        self.pushButton_5.setToolTip(_translate("Eurotherm2408", "<html><head/><body><p>Clears all the input values and resets them to default values</p></body></html>"))
+        self.label_3.setText(_translate("Eurotherm2408",
+                                        "<html><head/><body><p><span style=\" font-size:10pt;"
+                                        "font-weight:600;\">STEP2</span></p></body></html>"))
+        self.label_4.setText(_translate("Eurotherm2408",
+                                        "<html><head/><body><p><span style=\" font-size:10pt;"
+                                        "font-weight:600;\">STEP3</span></p></body></html>"))
+        self.label_8.setToolTip(
+            _translate("Eurotherm2408", "<html><head/><body><p>set the temperature hold duration</p></body></html>"))
+        self.label_8.setText(_translate("Eurotherm2408",
+                                        "<html><head/><body><p align=\"center\"><span style=\" font-size:10pt;"
+                                        "font-weight:600;\">Hold Time (H)</span></p></body></html>"))
+        self.label_23.setToolTip(_translate("Eurotherm2408",
+                                            "<html><head/><body><p>Select &quot;No&quot; if you want to continue to "
+                                            "next step. Else select the end program type (reset, "
+                                            "dwell or stop)</p></body></html>"))
+        self.label_23.setText(_translate("Eurotherm2408",
+                                         "<html><head/><body><p align=\"center\"><span style=\" font-size:10pt; "
+                                         "font-weight:600;\">END Type</span></p></body></html>"))
+        self.label_2.setText(_translate("Eurotherm2408",
+                                        "<html><head/><body><p><span style=\" font-size:10pt;"
+                                        "font-weight:600;\">STEP1</span></p></body></html>"))
+        self.label_9.setToolTip(_translate("Eurotherm2408",
+                                           "<html><head/><body><p>set heating rate ( set either one of ramp-time or "
+                                           "ramp-rate)</p></body></html>"))
+        self.label_9.setText(_translate("Eurotherm2408",
+                                        "<html><head/><body><p align=\"center\"><span style=\" font-size:10pt; "
+                                        "font-weight:600;\">Ramp Rate (℃/min)</span></p></body></html>"))
+        self.label_6.setToolTip(_translate("Eurotherm2408",
+                                           "<html><head/><body><p>Set the target temperature for each "
+                                           "step</p></body></html>"))
+        self.label_6.setText(_translate("Eurotherm2408",
+                                        "<html><head/><body><p align=\"center\"><span style=\" font-size:10pt; "
+                                        "font-weight:600;\">Temperature (℃)</span></p></body></html>"))
+        self.label_7.setToolTip(_translate("Eurotherm2408",
+                                           "<html><head/><body><p>Set total time in which the target temperature "
+                                           "should reach. ( set either one of ramp-time or "
+                                           "ramp-rate)</p></body></html>"))
+        self.label_7.setText(_translate("Eurotherm2408",
+                                        "<html><head/><body><p align=\"center\"><span style=\" font-size:10pt; "
+                                        "font-weight:600;\">Ramp time (H)</span></p></body></html>"))
+        self.pushButton_5.setToolTip(_translate("Eurotherm2408",
+                                                "<html><head/><body><p>Clears all the input values and resets them to "
+                                                "default values</p></body></html>"))
         self.pushButton_5.setText(_translate("Eurotherm2408", "Clear"))
-        self.pushButton.setToolTip(_translate("Eurotherm2408", "<html><head/><body><p>Click here to start your program</p></body></html>"))
+        self.pushButton.setToolTip(
+            _translate("Eurotherm2408", "<html><head/><body><p>Click here to start your program</p></body></html>"))
         self.pushButton.setText(_translate("Eurotherm2408", "RUN"))
-        self.pushButton_2.setToolTip(_translate("Eurotherm2408", "<html><head/><body><p>click here to abort the program</p></body></html>"))
+        self.pushButton_2.setToolTip(
+            _translate("Eurotherm2408", "<html><head/><body><p>click here to abort the program</p></body></html>"))
         self.pushButton_2.setText(_translate("Eurotherm2408", "STOP"))
-        self.pushButton_3.setToolTip(_translate("Eurotherm2408", "<html><head/><body><p>Click here to pause the program</p></body></html>"))
+        self.pushButton_3.setToolTip(
+            _translate("Eurotherm2408", "<html><head/><body><p>Click here to pause the program</p></body></html>"))
         self.pushButton_3.setText(_translate("Eurotherm2408", "HOLD"))
-        self.pushButton_4.setToolTip(_translate("Eurotherm2408", "<html><head/><body><p>click here to continue the program after it has been paused</p></body></html>"))
+        self.pushButton_4.setToolTip(_translate("Eurotherm2408",
+                                                "<html><head/><body><p>click here to continue the program after it "
+                                                "has been paused</p></body></html>"))
         self.pushButton_4.setText(_translate("Eurotherm2408", "CONTINUE"))
-        self.pushButton_6.setToolTip(_translate("Eurotherm2408", "<html><head/><body><p>After selecting the correct instrument address (com port), press here to start communicating with the PID controller</p></body></html>"))
+        self.pushButton_6.setToolTip(_translate("Eurotherm2408",
+                                                "<html><head/><body><p>After selecting the correct instrument address "
+                                                "(com port), press here to start communicating with the PID "
+                                                "controller</p></body></html>"))
         self.pushButton_6.setText(_translate("Eurotherm2408", "Connect Instrument"))
-        self.pushButton_7.setToolTip(_translate("Eurotherm2408", "<html><head/><body><p>Once you have entered all the input parameters, press here to feed the information into the PID controller</p></body></html>"))
+        self.pushButton_7.setToolTip(_translate("Eurotherm2408",
+                                                "<html><head/><body><p>Once you have entered all the input "
+                                                "parameters, press here to feed the information into the PID "
+                                                "controller</p></body></html>"))
         self.pushButton_7.setText(_translate("Eurotherm2408", "Feed Program"))
-        self.label.setToolTip(_translate("Eurotherm2408", "<html><head/><body><p>Target temperature in current segment</p></body></html>"))
-        self.label.setText(_translate("Eurotherm2408", "<html><head/><body><p align=\"right\"><span style=\" font-size:12pt;\">Set Temperature:</span></p></body></html>"))
-        self.label_19.setText(_translate("Eurotherm2408", "<html><head/><body><p><span style=\" font-size:10pt;\">0 ℃</span></p></body></html>"))
-        self.label_12.setText(_translate("Eurotherm2408", "<html><head/><body><p align=\"right\"><span style=\" font-size:12pt;\"> Current                        Temperature:</span></p></body></html>"))
-        self.label_20.setText(_translate("Eurotherm2408", "<html><head/><body><p><span style=\" font-size:10pt;\">0 ℃</span></p></body></html>"))
-        self.label_13.setText(_translate("Eurotherm2408", "<html><head/><body><p align=\"right\"><span style=\" font-size:12pt;\">Total Run Time:</span></p></body></html>"))
-        self.label_18.setText(_translate("Eurotherm2408", "<html><head/><body><p><span style=\" font-size:10pt;\">0 H</span></p></body></html>"))
-        self.label_14.setText(_translate("Eurotherm2408", "<html><head/><body><p align=\"right\"><span style=\" font-size:12pt;\">Remaining Time:</span></p></body></html>"))
-        self.label_17.setText(_translate("Eurotherm2408", "<html><head/><body><p><span style=\" font-size:10pt;\">0 H</span></p></body></html>"))
-        self.label_15.setText(_translate("Eurotherm2408", "<html><head/><body><p align=\"right\"><span style=\" font-size:12pt;\">Output Power:</span></p></body></html>"))
-        self.label_16.setText(_translate("Eurotherm2408", "<html><head/><body><p><span style=\" font-size:10pt;\">0 %</span></p></body></html>"))
-        self.label_22.setText(_translate("Eurotherm2408", "<html><head/><body><p align=\"right\"><span style=\" font-size:12pt;\">Instrument Address:</span></p></body></html>"))
-        self.label_21.setText(_translate("Eurotherm2408", "<html><head/><body><p><span style=\" font-size:10pt;\">COM4</span></p></body></html>"))
+        self.label.setToolTip(_translate("Eurotherm2408",
+                                         "<html><head/><body><p>Target temperature in current segment</p></body></html>"))
+        self.label.setText(_translate("Eurotherm2408",
+                                      "<html><head/><body><p align=\"right\"><span style=\" font-size:12pt;\">Set "
+                                      "Temperature:</span></p></body></html>"))
+        self.label_19.setText(_translate("Eurotherm2408",
+                                         "<html><head/><body><p><span style=\" font-size:10pt;\">0 "
+                                         "℃</span></p></body></html>"))
+        self.label_12.setText(_translate("Eurotherm2408",
+                                         "<html><head/><body><p align=\"right\"><span style=\" font-size:12pt;\"> "
+                                         "Current                        Temperature:</span></p></body></html>"))
+        self.label_20.setText(_translate("Eurotherm2408",
+                                         "<html><head/><body><p><span style=\" font-size:10pt;\">0 "
+                                         "℃</span></p></body></html>"))
+        self.label_13.setText(_translate("Eurotherm2408",
+                                         "<html><head/><body><p align=\"right\"><span style=\" "
+                                         "font-size:12pt;\">Total Run Time:</span></p></body></html>"))
+        self.label_18.setText(_translate("Eurotherm2408",
+                                         "<html><head/><body><p><span style=\" font-size:10pt;\">0 "
+                                         "H</span></p></body></html>"))
+        self.label_14.setText(_translate("Eurotherm2408",
+                                         "<html><head/><body><p align=\"right\"><span style=\" "
+                                         "font-size:12pt;\">Remaining Time:</span></p></body></html>"))
+        self.label_17.setText(_translate("Eurotherm2408",
+                                         "<html><head/><body><p><span style=\" font-size:10pt;\">0 "
+                                         "H</span></p></body></html>"))
+        self.label_15.setText(_translate("Eurotherm2408",
+                                         "<html><head/><body><p align=\"right\"><span style=\" "
+                                         "font-size:12pt;\">Output Power:</span></p></body></html>"))
+        self.label_16.setText(_translate("Eurotherm2408",
+                                         "<html><head/><body><p><span style=\" font-size:10pt;\">0 "
+                                         "%</span></p></body></html>"))
+        self.label_22.setText(_translate("Eurotherm2408",
+                                         "<html><head/><body><p align=\"right\"><span style=\" "
+                                         "font-size:12pt;\">Instrument Address:</span></p></body></html>"))
+        self.label_21.setText(_translate("Eurotherm2408",
+                                         "<html><head/><body><p><span style=\" "
+                                         "font-size:10pt;\">COM4</span></p></body></html>"))
         self.menuMain.setTitle(_translate("Eurotherm2408", "File"))
         self.menuAddress.setTitle(_translate("Eurotherm2408", "Address"))
         self.actionNew.setText(_translate("Eurotherm2408", "New Program"))
@@ -1627,4 +1693,3 @@ class Ui_Eurotherm2408(object):
         self.actioncom3.setText(_translate("Eurotherm2408", "com3"))
         self.actioncom4.setText(_translate("Eurotherm2408", "com4"))
         self.actionEnter_Manually.setText(_translate("Eurotherm2408", "Enter Manually"))
-

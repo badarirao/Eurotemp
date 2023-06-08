@@ -6,36 +6,42 @@ Created on Tue Dec 15 16:11:19 2020
 
 @author: Badari
 """
-#TODO: Need to check for errors
-#TODO: If heater is already running when program started, the software should show the progress of heating program.
-# Add documentation
-# TODO: Update GUI interface to set temperature manually
-# TODO: There is some problem in either loading previously saved program in instrument, or saving into instrument using feed_program command. It it not saved maybe..
+# TODO: Need to check for errors TODO: If heater is already running when program started, the software should show
+#  the progress of heating program. Add documentation TODO: Update GUI interface to set temperature manually TODO:
+#   There is some problem in either loading previously saved program in instrument, or saving into instrument using
+#   feed_program command. It it not saved maybe..
 
 import sys
 from PyQt5 import QtWidgets, QtCore, QtGui
 import pyqtgraph as pg
+from PyQt5.QtWidgets import QLabel
+
 from Eurothermdesign import Ui_Eurotherm2408
 from eurotherm import Eurotherm
 import numpy as np
 from serial import SerialException
-from time import sleep, time
+from time import sleep, localtime, strftime
 import os
-import csv
 from pymeasure.experiment import unique_filename
 
 
+# noinspection PyAttributeOutsideInit
 class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
     def __init__(self, *args, obj=None, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
         # load the UI page
+        self.outputData = None
+        self.t2 = None
+        self.laststep = None
+        self.prestep = None
+        self.current_status = None  # will be initialized in get_instrument()
+        self.obj = obj
         self.fname = None
         self.fed_data_flag = False
-        self.program_start_time = time()
         self.fileName = None
         self.instrument_connect_flag = False
         self.setupUi(self)
-        self.x = [0]
+        self.x = [0.0]
         self.stepno = 0
         self.current_Temp = 0.0  # program to save current temperature in this variable
         self.set_Temp = 0.0
@@ -93,6 +99,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         os.chdir(os.path.join(os.path.expandvars("%userprofile%"), "Desktop"))
         self.program_finish_status = False
         self.show()
+        self.eth = None  # will be initialized in connect_instrument()
+        self.instID = None  # will be initialized in connect_instrument()
         self.connect_instrument()
 
     def connect_instrument(self):
@@ -101,7 +109,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
             self.instID = self.eth.read_param('II')
             if self.instID == '>2480':
                 self.statusBar().showMessage(
-                    'Succussfully connected to Eurotherm2408. Waiting to feed parameters..')
+                    'Successfully connected to Eurotherm2408. Waiting to feed parameters..')
                 self.current_Temp = float(self.eth.read_param('PV'))
                 self.instrument_connect_flag = True
                 self.pushButton_5.setEnabled(True)
@@ -131,7 +139,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
                 inst.resize(400, 60)
                 hl = QtWidgets.QHBoxLayout(inst)
                 inst.setWindowTitle("Wrong Instrument...")
-                l = QtWidgets.QLabel(inst)
+                l: QLabel = QtWidgets.QLabel(inst)
                 l.setText(
                     "Wrong Instrument connected!\n Please enter the correct address for Eurotherm 2408")
                 hl.addWidget(l)
@@ -143,14 +151,14 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
             inst.resize(400, 60)
             hl = QtWidgets.QHBoxLayout(inst)
             inst.setWindowTitle("Error Connecting Instrument...")
-            l = QtWidgets.QLabel(inst)
+            l: QLabel = QtWidgets.QLabel(inst)
             l.setText(
-                "The instrument was not found at this address\n Please try different address or check instrument connection")
+                "The instrument was not found at this address\n Please try different address or check instrument "
+                "connection")
             hl.addWidget(l)
             inst.exec_()
 
-    def display_current_heating_program(self):
-        # Display and continue a currently running heater program
+    def enable_editing(self):
         self.program_finish_status = False
         self.pushButton_2.setEnabled(True)
         self.pushButton_3.setEnabled(True)
@@ -174,21 +182,24 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.comboBox.setEnabled(False)
         self.comboBox_2.setEnabled(False)
         self.comboBox_3.setEnabled(False)
+
+    def display_current_heating_program(self):
+        # Display and continue a currently running heater program
+        self.enable_editing()
         self.initialize_plot_data(continuation=True)
         self.plot()
         # so, elapsed time = total_time - time remaining in current segment - time for future segments
-        #program_remaining_time = float(self.eth.read_param('TP'))
-        #print(self.eth.read_param('TP'),self.total_time)
-        #self.elapsed_time = round(self.total_time - program_remaining_time,6)
+        # program_remaining_time = float(self.eth.read_param('TP'))
+        # print(self.eth.read_param('TP'),self.total_time)
         self.plot_realtime_data()
         self.statusBar().showMessage('Program is running..')
         self.run_status = True
         self.fed_data_flag = False
 
     def feed_parameters(self):
-        if self.instrument_connect_flag == False:
+        if not self.instrument_connect_flag:
             self.connect_instrument()
-        if self.instrument_connect_flag == False:
+        if not self.instrument_connect_flag:
             return 0
         self.statusBar().showMessage('Feeding the data into the controller. Please wait..')
         self.get_parameters()
@@ -206,43 +217,20 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
 
     def run_program(self):
         # run the program only if the instrument is successfully connected
-        #TODO: if program is already running, stop it, and then start.
-        if self.instrument_connect_flag == False:
+        # TODO: if program is already running, stop it, and then start.
+        if not self.instrument_connect_flag:
             self.connect_instrument()
-        if self.instrument_connect_flag == False:
+        if not self.instrument_connect_flag:
             return 0
         self.feed_parameters()
-        self.program_finish_status = False
-        self.pushButton_2.setEnabled(True)
-        self.pushButton_3.setEnabled(True)
-        self.pushButton_4.setEnabled(True)
-        self.pushButton.setEnabled(False)
-        self.pushButton_5.setEnabled(False)
-        self.pushButton_6.setEnabled(False)
-        self.pushButton_7.setEnabled(False)
-        self.doubleSpinBox.setEnabled(False)
-        self.doubleSpinBox_2.setEnabled(False)
-        self.doubleSpinBox_3.setEnabled(False)
-        self.doubleSpinBox_4.setEnabled(False)
-        self.doubleSpinBox_5.setEnabled(False)
-        self.doubleSpinBox_6.setEnabled(False)
-        self.doubleSpinBox_7.setEnabled(False)
-        self.doubleSpinBox_8.setEnabled(False)
-        self.doubleSpinBox_9.setEnabled(False)
-        self.doubleSpinBox_10.setEnabled(False)
-        self.doubleSpinBox_11.setEnabled(False)
-        self.doubleSpinBox_12.setEnabled(False)
-        self.comboBox.setEnabled(False)
-        self.comboBox_2.setEnabled(False)
-        self.comboBox_3.setEnabled(False)
+        self.enable_editing()
         self.plot_realtime_data()
         # send command to instrument to start the heating program
         self.eth.write_param('PC', '2')
         self.statusBar().showMessage('Program is running..')
         self.run_status = True
-        self.program_start_time = time()
         with open(self.fname, 'a', newline='') as f:
-            f.write("\n")
+            f.write("\n\n0, Starting new heating program")
         self.fed_data_flag = False
 
     def stop_program(self):
@@ -273,16 +261,21 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.eth.write_param('PC', '1')
         self.run_status = False
         self.statusBar().showMessage('User has stopped the program.')
+        t = localtime()
+        elapsed_time = strftime("%H:%M:%S", t)
+        with open(self.fname, 'a', newline='') as f:
+            f.write(f"\n{elapsed_time}, Stopped the heater")
         sleep(1)
         self.get_instrument_status()
         self.display_status()
-        #self.save_heating_info()
+        # self.save_heating_info()
 
     def save_heating_info(self, elapsed_time, set_Temp, current_Temp, OP):
-        #save heating data to file
-        if self.fname == None:
-            self.fname = unique_filename('C:\HeatingData', prefix='HeatingData_', ext='csv',
-                                index=False, datetimeformat="%Y-%m-%d-%Hh%Mm")
+        # save heating data to file
+        if self.fname is None:
+            print("Hello I was here")
+            self.fname = unique_filename('C:\\HeatingData', prefix='HeatingData_', ext='csv',
+                                         index=False, datetimeformat="%Y-%m-%d-%Hh%Mm")
             with open(self.fname, 'w', newline='') as f:
                 f.write("Elapsed Time(s),Set Temperature(°C),Temperature(°C),Output(%)")
         with open(self.fname, 'a', newline='') as f:
@@ -292,24 +285,35 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.hold = True
         self.pushButton_3.setEnabled(False)
         self.statusBar().showMessage('User has paused the program.')
+        t = localtime()
+        elapsed_time = strftime("%H:%M:%S", t)
+        with open(self.fname, 'a', newline='') as f:
+            f.write(f"\n{elapsed_time}, Heating paused")
         # send command to instrument to pause the program
         self.eth.write_param('PC', '4')
 
     def continue_program(self):
         if self.hold:
             self.pushButton_3.setEnabled(True)
-            self.eth.write_param('PC', '2')   # continue the paused program
+            self.eth.write_param('PC', '2')  # continue the paused program
             self.hold = False
+            t = localtime()
+            elapsed_time = strftime("%H:%M:%S", t)
+            with open(self.fname, 'a', newline='') as f:
+                f.write(f"\n{elapsed_time}, Continue heating.")
         else:
             self.eth.write_param('PC', '4')
-            self.total_time = self.total_time - \
-                float(self.eth.read_param('TS'))/3600
+            self.total_time = self.total_time - float(self.eth.read_param('TS')) / 3600
             sleep(0.2)
             # make remaining time in current segment as just 1 sec,
             self.eth.write_param('TS', '1')
             # so that the program quickly jumps to next step in the program
             sleep(0.2)
             self.eth.write_param('PC', '2')
+            t = localtime()
+            elapsed_time = strftime("%H:%M:%S", t)
+            with open(self.fname, 'a', newline='') as f:
+                f.write(f"\n{elapsed_time}, Jump to next step.")
         self.statusBar().showMessage('Program is running..')
 
     def get_instrument_status(self):
@@ -328,48 +332,48 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.clear_parameters()
         i = 0
         st = 0
-        s_type = float(self.eth.read_param('$'+ID[i]))
+        s_type = float(self.eth.read_param('$' + ID[i]))
         while s_type and i < 7:
             if s_type == 1:  # ramp rate
-                self.asteps[st]['T'] = float(self.eth.read_param('s'+ID[i]))
-                rate = float(self.eth.read_param('d'+ID[i]))
+                self.asteps[st]['T'] = float(self.eth.read_param('s' + ID[i]))
+                rate = float(self.eth.read_param('d' + ID[i]))
                 self.asteps[st]['Rt'] = (
-                    self.asteps[st]['T']-self.current_Temp)/(60*rate)
-                next_stype = float(self.eth.read_param('$'+ID[i+1]))
-                if next_stype in (1,2):
+                                                self.asteps[st]['T'] - self.current_Temp) / (60 * rate)
+                next_stype = float(self.eth.read_param('$' + ID[i + 1]))
+                if next_stype in (1, 2):
                     self.asteps[st]['H'] = 0
                     self.asteps[st]['E'] = 0
-                    st = st+1
+                    st = st + 1
                 elif next_stype == 0:
                     self.asteps[st]['E'] = int(
-                        float(self.eth.read_param('p'+ID[i+1]))+1)
+                        float(self.eth.read_param('p' + ID[i + 1])) + 1)
                     break
             elif s_type == 2:  # ramp time
-                self.asteps[st]['T'] = float(self.eth.read_param('s'+ID[i]))
+                self.asteps[st]['T'] = float(self.eth.read_param('s' + ID[i]))
                 self.asteps[st]['Rt'] = float(
-                    self.eth.read_param('d'+ID[i]))/60
-                next_stype = float(self.eth.read_param('$'+ID[i+1]))
-                if next_stype in (1,2):
+                    self.eth.read_param('d' + ID[i])) / 60
+                next_stype = float(self.eth.read_param('$' + ID[i + 1]))
+                if next_stype in (1, 2):
                     self.asteps[st]['H'] = 0
                     self.asteps[st]['E'] = 0
-                    st = st+1
+                    st = st + 1
                 elif next_stype == 0:
                     self.asteps[st]['E'] = int(
-                        float(self.eth.read_param('p'+ID[i+1]))+1)
+                        float(self.eth.read_param('p' + ID[i + 1])) + 1)
                     break
             elif s_type == 3:  # Dwell
-                self.asteps[st]['H'] = float(self.eth.read_param('d'+ID[i]))/60
-                if float(self.eth.read_param('$'+ID[i+1])) == 0:
+                self.asteps[st]['H'] = float(self.eth.read_param('d' + ID[i])) / 60
+                if float(self.eth.read_param('$' + ID[i + 1])) == 0:
                     self.asteps[st]['E'] = int(
-                        float(self.eth.read_param('p'+ID[i+1]))+1)
+                        float(self.eth.read_param('p' + ID[i + 1])) + 1)
                     break
                 else:
                     self.asteps[st]['E'] = 0
-                st = st+1
+                st = st + 1
             else:
                 pass
-            i = i+1
-            s_type = float(self.eth.read_param('$'+ID[i]))
+            i = i + 1
+            s_type = float(self.eth.read_param('$' + ID[i]))
         self.step1 = self.asteps[0]
         self.step2 = self.asteps[1]
         self.step3 = self.asteps[2]
@@ -378,39 +382,45 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
     def display_status(self):
         # display the target temperature for current segment
         self.label_19.setText(
-            "<html><head/><body><p><span style=\" font-size:10pt;\">{0} ℃</span></p></body></html>".format(self.set_Temp))
+            "<html><head/><body><p><span style=\" font-size:10pt;\">{0} ℃</span></p></body></html>".format(
+                self.set_Temp))
         # display the current temperature
         self.label_20.setText(
-            "<html><head/><body><p><span style=\" font-size:10pt;\">{0} ℃</span></p></body></html>".format(self.current_Temp))
+            "<html><head/><body><p><span style=\" font-size:10pt;\">{0} ℃</span></p></body></html>".format(
+                self.current_Temp))
         # Display the calculated total program run time
         self.label_18.setText(
-            "<html><head/><body><p><span style=\" font-size:10pt;\">{:.3f} H</span></p></body></html>".format(self.total_time))
+            "<html><head/><body><p><span style=\" font-size:10pt;\">{:.3f} H</span></p></body></html>".format(
+                self.total_time))
         # display the remaining time for the program to end
         self.label_17.setText(
-            "<html><head/><body><p><span style=\" font-size:10pt;\">{:.3f} H</span></p></body></html>".format(self.time_left))
+            "<html><head/><body><p><span style=\" font-size:10pt;\">{:.3f} H</span></p></body></html>".format(
+                self.time_left))
         # display the current output power being used
         self.label_16.setText(
             "<html><head/><body><p><span style=\" font-size:10pt;\">{0} %</span></p></body></html>".format(self.OP))
         # display instrument address
         self.label_21.setText(
-            "<html><head/><body><p><span style=\" font-size:10pt;\">{0}</span></p></body></html>".format(self.instrument_address))
-        elapsed_time = round(time() - self.program_start_time,2)
+            "<html><head/><body><p><span style=\" font-size:10pt;\">{0}</span></p></body></html>".format(
+                self.instrument_address))
+        t = localtime()
+        elapsed_time = strftime("%H:%M:%S", t)
         self.save_heating_info(elapsed_time, self.set_Temp, self.current_Temp, self.OP)
         # highlight the current step number
-        if self.run_status == True:
+        if self.run_status:
             try:
                 self.prestep = self.stepno
-                n = int(float(self.eth.read_param('SN'))) # segment number
-                stype = int(float(self.eth.read_param('CS'))) # segment type
+                n = int(float(self.eth.read_param('SN')))  # segment number
+                stype = int(float(self.eth.read_param('CS')))  # segment type
                 if stype == 3:
                     if n % 2 == 0:
-                        self.stepno = int(n/2)
+                        self.stepno = int(n / 2)
                     else:
-                        self.stepno = int(n/2) + 1
-                elif stype in (1,2) and n%2 == 0:
+                        self.stepno = int(n / 2) + 1
+                elif stype in (1, 2) and n % 2 == 0:
                     self.stepno = n
                 else:
-                    self.stepno = int(n/2)+1
+                    self.stepno = int(n / 2) + 1
                 if self.prestep != self.stepno:
                     if self.stepno == 1:
                         self.label_2.setStyleSheet(
@@ -450,9 +460,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.step2 = {'T': 0.0, 'Rt': 0.0, 'Rr': 0.0, 'H': 0.0, 'E': 2}
         self.step3 = {'T': 0.0, 'Rt': 0.0, 'Rr': 0.0, 'H': 0.0, 'E': 2}
 
-    def Rt_to_Rr(self, t1, t2, db1, db2):
+    @staticmethod
+    def Rt_to_Rr(t1, t2, db1, db2):
         if db1.value() != 0:
-            db2.setValue((t2-t1)/(60.0*db1.value()))
+            db2.setValue((t2 - t1) / (60.0 * db1.value()))
 
     def get_parameters(self):
         self.step1['T'] = self.doubleSpinBox.value()
@@ -486,19 +497,19 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         i = 0
         print(self.asteps)
         while self.laststep > ls:
-            self.eth.write_param('$'+ID[i], '2')
-            self.eth.write_param('s'+ID[i], str(self.asteps[ls]['T']))
-            self.eth.write_param('d'+ID[i], str(self.asteps[ls]['Rt']*60.0))
+            self.eth.write_param('$' + ID[i], '2')
+            self.eth.write_param('s' + ID[i], str(self.asteps[ls]['T']))
+            self.eth.write_param('d' + ID[i], str(self.asteps[ls]['Rt'] * 60.0))
             if self.asteps[ls]['H'] != 0:
-                i = i+1
-                self.eth.write_param('$'+ID[i], '3')
-                self.eth.write_param('d'+ID[i], str(self.asteps[ls]['H']*60.0))
-            if self.laststep == ls+1:
-                i = i+1
-                self.eth.write_param('$'+ID[i], '0')
-                self.eth.write_param('p'+ID[i], str(self.asteps[ls]['E']-1))
-            ls = ls+1
-            i = i+1
+                i = i + 1
+                self.eth.write_param('$' + ID[i], '3')
+                self.eth.write_param('d' + ID[i], str(self.asteps[ls]['H'] * 60.0))
+            if self.laststep == ls + 1:
+                i = i + 1
+                self.eth.write_param('$' + ID[i], '0')
+                self.eth.write_param('p' + ID[i], str(self.asteps[ls]['E'] - 1))
+            ls = ls + 1
+            i = i + 1
 
     def new_menu(self):
         # Suppose you want to start a new program, and want the heater to continue 
@@ -507,13 +518,17 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.actionNew.setStatusTip(
             'Enter and run new heating parameters, which will instantly take over from the current heating program')
         self.actionNew.triggered.connect(self.open_new_parameter_file)
+        self.fname = unique_filename('C:\\HeatingData', prefix='HeatingData_', ext='csv',
+                                     index=False, datetimeformat="%Y-%m-%d-%Hh%Mm")
+        with open(self.fname, 'w', newline='') as f:
+            f.write("Elapsed Time(s),Set Temperature(°C),Temperature(°C),Output(%)")
 
     def open_new_parameter_file(self):
         self.clear_parameters()
         # prepare the software to input new values.
         # Note: Even though the software has stopped, the heater program is still running in the instrument
         # Once Run is clicked, the newly fed program will take over, thereby resulting in no lag in the program
-        if self.run_status == True:
+        if self.run_status:
             self.pushButton.setEnabled(True)
             self.pushButton_4.setEnabled(True)
             self.pushButton_5.setEnabled(True)
@@ -539,13 +554,15 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
             self.pushButton_4.setEnabled(False)
             self.timer.stop()
             self.run_status = False
-            self.statusBar().showMessage('Enter new parameters and click run. If you want to go back to the heater program, restart the software.')
-            #self.get_instrument_status()
-            #self.display_status()
-            #self.save_heating_info()
-        #options = QtWidgets.QFileDialog.Options()
-        #options |= QtWidgets.QFileDialog.DontUseNativeDialog
-        #self.fileName, _ = QtWidgets.QFileDialog.getSaveFileName(self,"QFileDialog.getSaveFileName()","","All Files (*);;Parameter Files (*.txt)", options=options)
+            self.statusBar().showMessage(
+                'Enter new parameters and click run. If you want to go back to the heater program, restart the '
+                'software.')
+            # self.get_instrument_status()
+            # self.display_status()
+            # self.save_heating_info()
+        # options = QtWidgets.QFileDialog.Options() options |= QtWidgets.QFileDialog.DontUseNativeDialog
+        # self.fileName, _ = QtWidgets.QFileDialog.getSaveFileName(self,"QFileDialog.getSaveFileName()","",
+        # "All Files (*);;Parameter Files (*.txt)", options=options)
 
     def open_menu(self):
         self.actionOpen.setShortcut('Ctrl+O')
@@ -649,6 +666,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.actionExit.setStatusTip('Exit application')
         try:
             self.actionExit.triggered.connect(self.eth.s.close)
+            self.actionExit.triggered.connect(self.store_software_close_event)
         except AttributeError:
             pass
         self.actionExit.triggered.connect(QtWidgets.qApp.quit)
@@ -676,7 +694,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
     def set_instrument_address(self, addr):
         self.instrument_address = addr
         self.label_21.setText(
-            "<html><head/><body><p><span style=\" font-size:10pt;\">{0}</span></p></body></html>".format(self.instrument_address))
+            "<html><head/><body><p><span style=\" font-size:10pt;\">{0}</span></p></body></html>".format(
+                self.instrument_address))
 
     def Enter_Manually_menu(self):
         self.actionEnter_Manually.setStatusTip(
@@ -750,14 +769,14 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
     def plot_realtime_data(self):
         self.x = [0]
         self.t2 = [self.current_Temp]
-        self.outputData = [0]
+        self.outputData = [0.0]
         pen2 = pg.mkPen(color=(0, 0, 255), width=2)
         try:
             if self.data_line:
                 self.data_line.setData(self.x, self.t2)
                 if self.fed_data_flag:
                     self.data_line = self.graphWidget.plot(
-                        self.x, self.t2, name="Atual T Path", pen=pen2)
+                        self.x, self.t2, name="Actual T Path", pen=pen2)
                 else:
                     self.data_line = self.graphWidget.plot(
                         self.x, self.t2, pen=pen2)
@@ -772,27 +791,27 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.timecount.start()
 
     def update_plot_data(self):
-        self.x.append(self.x[0] + self.timecount.elapsed()/(1000*3600))
+        self.x.append(self.x[0] + self.timecount.elapsed() / (1000 * 3600))
         self.get_instrument_status()
         self.outputData.append(self.OP)
         self.t2.append(self.current_Temp)
         self.data_line.setData(self.x, self.t2)
         if self.OP > 50:
-            if (self.set_Temp-self.current_Temp)/self.set_Temp*100 > 5:
+            if (self.set_Temp - self.current_Temp) / self.set_Temp * 100 > 5:
                 self.statusBar().showMessage(
                     'The there is some problem with heater or thermocouple reading. Heating Stopped.')
                 self.stop_program()
         self.display_status()
-        if self.time_left <= 0 and self.program_finish_status == False:
+        if self.time_left <= 0 and self.program_finish_status is False:
             self.program_finish_status = True
             self.statusBar().showMessage(
                 'The program has successfully finished. Plotter will run until temperature cools down to 50 °C.')
-        if self.current_Temp < 50 and self.program_finish_status == True:
+        if self.current_Temp < 50 and self.program_finish_status is True:
             sleep(1)
             self.stop_program()
             self.statusBar().showMessage('The program has successfully finished.')
 
-    def initialize_plot_data(self,continuation = False):
+    def initialize_plot_data(self, continuation=False):
         self.total_time = 0
         self.npoints = 10
         seg = 0
@@ -800,8 +819,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
             # get current segment that is running
             seg = int(float(self.eth.read_param('SN')))
             stype = int(float(self.eth.read_param('CS')))
-            if stype == 1 and seg%2 == 0:
-                seg = seg+1
+            if stype == 1 and seg % 2 == 0:
+                seg = seg + 1
         if self.laststep > 0:
             time_remaining = self.step1['Rt']
             if seg < 1:
@@ -809,8 +828,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
                 self.t1r = np.linspace(
                     self.current_Temp, self.step1['T'], self.npoints)
             elif seg == 1:
-                time_remaining = round(float(self.eth.read_param('TS'))/3600,6)
-                self.x1r = np.linspace(0,time_remaining, self.npoints)
+                time_remaining = round(float(self.eth.read_param('TS')) / 3600, 6)
+                self.x1r = np.linspace(0, time_remaining, self.npoints)
                 self.t1r = np.linspace(
                     self.current_Temp, self.step1['T'], self.npoints)
             else:
@@ -823,17 +842,17 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
                 time_remaining = self.step1['H']
                 if seg < 2:
                     self.x1h = np.linspace(
-                        self.x1r[-1], self.x1r[-1]+self.step1['H'], self.npoints)
+                        self.x1r[-1], self.x1r[-1] + self.step1['H'], self.npoints)
                     self.t1h = np.linspace(
                         self.t1r[-1], self.step1['T'], self.npoints)
                 elif seg == 2:
-                    time_remaining = round(float(self.eth.read_param('TS'))/3600,6)
+                    time_remaining = round(float(self.eth.read_param('TS')) / 3600, 6)
                     self.x1h = np.linspace(
                         0, time_remaining, self.npoints)
-                    self.x1h = np.insert(self.x1h,0,0)
+                    self.x1h = np.insert(self.x1h, 0, 0)
                     self.t1h = np.linspace(
                         self.step1['T'], self.step1['T'], self.npoints)
-                    self.t1h = np.insert(self.t1h,0,0)
+                    self.t1h = np.insert(self.t1h, 0, 0)
                 else:
                     self.x1h = []
                     self.t1h = []
@@ -844,17 +863,17 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
                 self.t1h = [self.step1['T']]
         if self.laststep > 1:
             time_remaining = self.step2['Rt']
-            if seg <3:
+            if seg < 3:
                 self.x2r = np.linspace(
-                    self.total_time, self.total_time+self.step2['Rt'], self.npoints)
+                    self.total_time, self.total_time + self.step2['Rt'], self.npoints)
                 self.t2r = np.linspace(self.t1h[-1], self.step2['T'], self.npoints)
             elif seg == 3:
-                time_remaining = round(float(self.eth.read_param('TS'))/3600,6)
+                time_remaining = round(float(self.eth.read_param('TS')) / 3600, 6)
                 self.x2r = np.linspace(
                     0, time_remaining, self.npoints)
-                self.x2r = np.insert(self.x2r,0,0)
+                self.x2r = np.insert(self.x2r, 0, 0)
                 self.t2r = np.linspace(self.current_Temp, self.step2['T'], self.npoints)
-                self.t2r = np.insert(self.t2r,0,0)
+                self.t2r = np.insert(self.t2r, 0, 0)
             else:
                 self.x2r = []
                 self.t2r = []
@@ -865,17 +884,17 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
                 time_remaining = self.step2['H']
                 if seg < 4:
                     self.x2h = np.linspace(
-                        self.total_time, self.total_time+self.step2['H'], self.npoints)
+                        self.total_time, self.total_time + self.step2['H'], self.npoints)
                     self.t2h = np.linspace(
                         self.t2r[-1], self.step2['T'], self.npoints)
                 elif seg == 4:
-                    time_remaining = round(float(self.eth.read_param('TS'))/3600,6)
+                    time_remaining = round(float(self.eth.read_param('TS')) / 3600, 6)
                     self.x2h = np.linspace(
                         0, time_remaining, self.npoints)
-                    self.x2h = np.insert(self.x2h,0,0)
+                    self.x2h = np.insert(self.x2h, 0, 0)
                     self.t2h = np.linspace(
                         self.step2['T'], self.step2['T'], self.npoints)
-                    self.t2h = np.insert(self.t2h,0,0)
+                    self.t2h = np.insert(self.t2h, 0, 0)
                 else:
                     self.x2h = []
                     self.t2h = []
@@ -888,15 +907,15 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
             time_remaining = self.step3['Rt']
             if seg < 5:
                 self.x3r = np.linspace(
-                    self.total_time, self.total_time+self.step3['Rt'], self.npoints)
+                    self.total_time, self.total_time + self.step3['Rt'], self.npoints)
                 self.t3r = np.linspace(self.t2h[-1], self.step3['T'], self.npoints)
             elif seg == 5:
-                time_remaining = round(float(self.eth.read_param('TS'))/3600,6)
+                time_remaining = round(float(self.eth.read_param('TS')) / 3600, 6)
                 self.x3r = np.linspace(
                     0, time_remaining, self.npoints)
-                self.x3r = np.insert(self.x3r,0,0)
+                self.x3r = np.insert(self.x3r, 0, 0)
                 self.t3r = np.linspace(self.current_Temp, self.step3['T'], self.npoints)
-                self.t3r = np.insert(self.t3r,0,0)
+                self.t3r = np.insert(self.t3r, 0, 0)
             else:
                 self.x3r = []
                 self.t3r = []
@@ -907,17 +926,17 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
                 time_remaining = self.step3['H']
                 if seg < 6:
                     self.x3h = np.linspace(
-                        self.total_time, self.total_time+self.step3['H'], self.npoints)
+                        self.total_time, self.total_time + self.step3['H'], self.npoints)
                     self.t3h = np.linspace(
                         self.t3r[-1], self.step3['T'], self.npoints)
                 elif seg == 6:
-                    time_remaining = round(float(self.eth.read_param('TS'))/3600,6)
+                    time_remaining = round(float(self.eth.read_param('TS')) / 3600, 6)
                     self.x3h = np.linspace(
                         0, time_remaining, self.npoints)
-                    self.x3h = np.insert(self.x3h,0,0)
+                    self.x3h = np.insert(self.x3h, 0, 0)
                     self.t3h = np.linspace(
                         self.step3['T'], self.step3['T'], self.npoints)
-                    self.t3h = np.insert(self.t3h,0,0)
+                    self.t3h = np.insert(self.t3h, 0, 0)
                 else:
                     self.x3h = []
                     self.t3h = []
@@ -926,13 +945,20 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
                 self.total_time = self.total_time + time_remaining
             else:
                 self.t3h = [self.step3['T']]
-    
-    def isfloat(self, value):
+
+    @staticmethod
+    def isfloat(value):
         try:
             float(value)
             return True
         except ValueError:
             return False
+
+    def store_software_close_event(self):
+        t = localtime()
+        elapsed_time = strftime("%H:%M:%S", t)
+        with open(self.fname, 'a', newline='') as f:
+            f.write(f"\n{elapsed_time}, Software closed.")
 
     def closeEvent(self, event):
         quit_msg = "Are you sure you want to exit the program?"
@@ -940,6 +966,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
                                            quit_msg, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
         if reply == QtGui.QMessageBox.Yes:
             try:
+                self.store_software_close_event()
                 self.eth.s.close()
             except AttributeError:
                 pass
@@ -950,7 +977,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
-    main = MainWindow()
+    MainWindow()
     sys.exit(app.exec_())
 
 
