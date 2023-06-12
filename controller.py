@@ -798,9 +798,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.data_line.setData(self.x, self.t2)
         if self.OP > 50:
             if (self.set_Temp - self.current_Temp) / self.set_Temp * 100 > 5:
+                self.stop_program()
                 self.statusBar().showMessage(
                     'The there is some problem with heater or thermocouple reading. Heating Stopped.')
-                self.stop_program()
         self.display_status()
         if self.time_left <= 0 and self.program_finish_status is False:
             self.program_finish_status = True
