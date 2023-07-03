@@ -858,19 +858,20 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
                 else:
                     self.data_line = self.graphWidget.plot(
                         self.x, self.t2, pen=pen2)
-            if self.data_line3:
+            """if self.data_line3: # uncomment this and the one in excption to unlock surfate temperature plotting.
                 self.data_line3.setData(self.x, self.t3)
                 if self.fed_data_flag:
                     self.data_line3 = self.graphWidget.plot(
                         self.x, self.t3, name="Surface Temparature", pen=pen3)
                 else:
                     self.data_line3 = self.graphWidget.plot(
-                        self.x, self.t3, pen=pen3)
+                        self.x, self.t3, pen=pen3)"""
         except (NameError, AttributeError):
             self.data_line = self.graphWidget.plot(
                 self.x, self.t2, name="Actual T path", pen=pen2)
-            self.data_line3 = self.graphWidget.plot(
-                self.x, self.t3, name="Surface Temperature", pen=pen3)
+            # uncomment this to unlock surfate temperature plotting.
+            #self.data_line3 = self.graphWidget.plot(
+            #    self.x, self.t3, name="Surface Temperature", pen=pen3)
         self.timer = QtCore.QTimer()
         self.timecount = QtCore.QElapsedTimer()
         self.timer.setInterval(2000)
