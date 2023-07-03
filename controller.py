@@ -11,18 +11,16 @@ Created on Tue Dec 15 16:11:19 2020
 #   There is some problem in either loading previously saved program in instrument, or saving into instrument using
 #   feed_program command. It it not saved maybe..
 
-import sys
+import sys, os
+import numpy as np
+from time import sleep, localtime, strftime, time
+from serial import SerialException
 from PyQt5 import QtWidgets, QtCore, QtGui
 import pyqtgraph as pg
 from PyQt5.QtWidgets import QLabel
-
+from pymeasure.experiment import unique_filename
 from Eurothermdesign import Ui_Eurotherm2408
 from eurotherm import Eurotherm
-import numpy as np
-from serial import SerialException
-from time import sleep, localtime, strftime
-import os
-from pymeasure.experiment import unique_filename
 
 
 # noinspection PyAttributeOutsideInit
@@ -39,6 +37,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.fname = None
         self.fed_data_flag = False
         self.fileName = None
+        self.startTime = time()
+        self.manualheatingRate = 25.0 # degrees per minute
+        self.manualDefaultTemperature = 120 # 0 degrees
         self.instrument_connect_flag = False
         self.setupUi(self)
         self.x = [0.0]
@@ -60,6 +61,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.save_menu()  # initiate the dialogue for save program button in menubar
         self.open_menu()  # initiate the dialogue for open program button in menubar
         self.new_menu()  # initiate the dialogue for new program button in menubar
+        self.manual_heatingRate() # set manual heating rate
+        self.default_manualTemperature() # set manual default temperature
         self.com1_menu()
         self.com2_menu()
         self.com3_menu()
@@ -71,12 +74,14 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.pushButton_3.setEnabled(False)  #
         self.pushButton_4.setEnabled(False)
         self.pushButton_7.setEnabled(False)
+        self.pushButton_8.setEnabled(False)
         self.doubleSpinBox_3.setReadOnly(True)
         self.doubleSpinBox_7.setReadOnly(True)
         self.doubleSpinBox_11.setReadOnly(True)
         self.doubleSpinBox_2.setSingleStep(0.1)
         self.doubleSpinBox_6.setSingleStep(0.1)
         self.doubleSpinBox_10.setSingleStep(0.1)
+        self.doubleSpinBox_13.setValue(self.manualDefaultTemperature)
         self.pushButton_7.clicked.connect(self.feed_parameters)
         self.pushButton_6.clicked.connect(self.connect_instrument)
         self.pushButton.clicked.connect(self.run_program)
@@ -84,6 +89,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.pushButton_3.clicked.connect(self.hold_program)
         self.pushButton_4.clicked.connect(self.continue_program)
         self.pushButton_5.clicked.connect(self.clear_parameters)
+        self.pushButton_8.clicked.connect(self.manual_heating)
         self.doubleSpinBox_2.valueChanged['double'].connect(lambda: self.Rt_to_Rr(
             self.current_Temp, self.doubleSpinBox.value(), self.doubleSpinBox_2, self.doubleSpinBox_3))
         self.doubleSpinBox.valueChanged['double'].connect(lambda: self.Rt_to_Rr(
@@ -116,6 +122,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
                 self.pushButton_6.setEnabled(False)
                 self.pushButton.setEnabled(True)
                 self.pushButton_7.setEnabled(True)
+                self.pushButton_8.setEnabled(True)
                 self.menuAddress.setDisabled(True)
                 # set ramp rate unit as minutes
                 self.eth.write_param('d0', '1')
@@ -131,6 +138,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
                     self.eth.write_param('EP', '1')  # set program number as 1
                 elif self.current_status == 2 or self.current_status == 4:
                     self.display_current_heating_program()
+                self.eth.write_param('wc','7') # Set second display to show process value 2
             else:
                 self.statusBar().showMessage(
                     'Wrong Instrument! Change address to correct instrument and retry!', 5000)
@@ -158,7 +166,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
             hl.addWidget(l)
             inst.exec_()
 
-    def enable_editing(self):
+    def disable_editing(self):
         self.program_finish_status = False
         self.pushButton_2.setEnabled(True)
         self.pushButton_3.setEnabled(True)
@@ -167,6 +175,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.pushButton_5.setEnabled(False)
         self.pushButton_6.setEnabled(False)
         self.pushButton_7.setEnabled(False)
+        self.pushButton_8.setEnabled(False)
         self.doubleSpinBox.setEnabled(False)
         self.doubleSpinBox_2.setEnabled(False)
         self.doubleSpinBox_3.setEnabled(False)
@@ -185,7 +194,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
 
     def display_current_heating_program(self):
         # Display and continue a currently running heater program
-        self.enable_editing()
+        self.disable_editing()
         self.initialize_plot_data(continuation=True)
         self.plot()
         # so, elapsed time = total_time - time remaining in current segment - time for future segments
@@ -223,13 +232,14 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         if not self.instrument_connect_flag:
             return 0
         self.feed_parameters()
-        self.enable_editing()
+        self.disable_editing()
         self.plot_realtime_data()
+        self.startTime = time()
         # send command to instrument to start the heating program
         self.eth.write_param('PC', '2')
         self.statusBar().showMessage('Program is running..')
         self.run_status = True
-        with open(self.fname, 'a', newline='') as f:
+        with open(self.fnamelog, 'a', newline='') as f:
             f.write("\n\n0, Starting new heating program")
         self.fed_data_flag = False
 
@@ -238,6 +248,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.pushButton_4.setEnabled(True)
         self.pushButton_5.setEnabled(True)
         self.pushButton_7.setEnabled(True)
+        self.pushButton_8.setEnabled(True)
         self.doubleSpinBox.setEnabled(True)
         self.doubleSpinBox_2.setEnabled(True)
         self.doubleSpinBox_3.setEnabled(True)
@@ -263,22 +274,21 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.statusBar().showMessage('User has stopped the program.')
         t = localtime()
         elapsed_time = strftime("%H:%M:%S", t)
-        with open(self.fname, 'a', newline='') as f:
+        with open(self.fnamelog, 'a', newline='') as f:
             f.write(f"\n{elapsed_time}, Stopped the heater")
         sleep(1)
         self.get_instrument_status()
         self.display_status()
-        # self.save_heating_info()
 
-    def save_heating_info(self, elapsed_time, set_Temp, current_Temp, OP):
+    def save_heating_info(self, elapsed_time, elapsed_seconds, set_Temp, current_Temp, surface_Temp, OP):
         # save heating data to file
         if self.fname is None:
             self.fname = unique_filename('C:\\HeatingData', prefix='HeatingData_', ext='csv',
                                          index=False, datetimeformat="%Y-%m-%d-%Hh%Mm")
             with open(self.fname, 'w', newline='') as f:
-                f.write("Elapsed Time(s),Set Temperature(°C),Temperature(°C),Output(%)")
+                f.write("Time,Elapsed Time (s),Set Temperature(°C),Heater Temperature(°C),Surface Temperature(°C),Output(%)")
         with open(self.fname, 'a', newline='') as f:
-            f.write(f"\n{elapsed_time},{set_Temp},{current_Temp},{OP}")
+            f.write(f"\n{elapsed_time},{elapsed_seconds},{set_Temp},{current_Temp},{surface_Temp},{OP}")
 
     def hold_program(self):
         self.hold = True
@@ -286,7 +296,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.statusBar().showMessage('User has paused the program.')
         t = localtime()
         elapsed_time = strftime("%H:%M:%S", t)
-        with open(self.fname, 'a', newline='') as f:
+        with open(self.fnamelog, 'a', newline='') as f:
             f.write(f"\n{elapsed_time}, Heating paused")
         # send command to instrument to pause the program
         self.eth.write_param('PC', '4')
@@ -298,7 +308,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
             self.hold = False
             t = localtime()
             elapsed_time = strftime("%H:%M:%S", t)
-            with open(self.fname, 'a', newline='') as f:
+            with open(self.fnamelog, 'a', newline='') as f:
                 f.write(f"\n{elapsed_time}, Continue heating.")
         else:
             self.eth.write_param('PC', '4')
@@ -311,12 +321,13 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
             self.eth.write_param('PC', '2')
             t = localtime()
             elapsed_time = strftime("%H:%M:%S", t)
-            with open(self.fname, 'a', newline='') as f:
+            with open(self.fnamelog, 'a', newline='') as f:
                 f.write(f"\n{elapsed_time}, Jump to next step.")
         self.statusBar().showMessage('Program is running..')
 
     def get_instrument_status(self):
         self.current_Temp = float(self.eth.read_param('PV'))
+        self.current_Surface_Temp = float(self.eth.read_param('PV')) #change this to 'wc' (not sure)
         self.OP = float(self.eth.read_param('OP'))
         self.set_Temp = float(self.eth.read_param('SL'))
         self.current_status = int(float(self.eth.read_param('PC')))
@@ -387,6 +398,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.label_20.setText(
             "<html><head/><body><p><span style=\" font-size:10pt;\">{0} ℃</span></p></body></html>".format(
                 self.current_Temp))
+        # display the current surface temperature
+        """self.label_S.setText(
+            "<html><head/><body><p><span style=\" font-size:10pt;\">{0} ℃</span></p></body></html>".format(
+                self.current_Surface_Temp))"""
         # Display the calculated total program run time
         self.label_18.setText(
             "<html><head/><body><p><span style=\" font-size:10pt;\">{:.3f} H</span></p></body></html>".format(
@@ -403,8 +418,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
             "<html><head/><body><p><span style=\" font-size:10pt;\">{0}</span></p></body></html>".format(
                 self.instrument_address))
         t = localtime()
+        elapsed_seconds = self.startTime - time()
         elapsed_time = strftime("%H:%M:%S", t)
-        self.save_heating_info(elapsed_time, self.set_Temp, self.current_Temp, self.OP)
+        self.save_heating_info(elapsed_time, elapsed_seconds, self.set_Temp, self.current_Temp, self.current_Surface_Temp, self.OP)
         # highlight the current step number
         if self.run_status:
             try:
@@ -459,6 +475,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.step2 = {'T': 0.0, 'Rt': 0.0, 'Rr': 0.0, 'H': 0.0, 'E': 2}
         self.step3 = {'T': 0.0, 'Rt': 0.0, 'Rr': 0.0, 'H': 0.0, 'E': 2}
 
+    def manual_heating(self):
+        #TODO: Setting heating rate is not implemented yet
+        self.eth.set_temperature(float(self.manualDefaultTemperature))
+
     @staticmethod
     def Rt_to_Rr(t1, t2, db1, db2):
         if db1.value() != 0:
@@ -494,7 +514,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
               '9', ':', ';', '<', '=', '>', '?', '@']
         ls = 0
         i = 0
-        print(self.asteps)
         while self.laststep > ls:
             self.eth.write_param('$' + ID[i], '2')
             self.eth.write_param('s' + ID[i], str(self.asteps[ls]['T']))
@@ -519,8 +538,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.actionNew.triggered.connect(self.open_new_parameter_file)
         self.fname = unique_filename('C:\\HeatingData', prefix='HeatingData_', ext='csv',
                                      index=False, datetimeformat="%Y-%m-%d-%Hh%Mm")
+        self.fnamelog = unique_filename('C:\\HeatingData', prefix='HeatingDatalog_', ext='csv',
+                                     index=False, datetimeformat="%Y-%m-%d-%Hh%Mm")
         with open(self.fname, 'w', newline='') as f:
-            f.write("Elapsed Time(s),Set Temperature(°C),Temperature(°C),Output(%)")
+            f.write("Time,Elapsed Time (s),Set Temperature(°C),Heater Temperature(°C),Surface Temperature(°C),Output(%)")
 
     def open_new_parameter_file(self):
         self.clear_parameters()
@@ -532,6 +553,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
             self.pushButton_4.setEnabled(True)
             self.pushButton_5.setEnabled(True)
             self.pushButton_7.setEnabled(True)
+            self.pushButton_8.setEnabled(True)
             self.doubleSpinBox.setEnabled(True)
             self.doubleSpinBox_2.setEnabled(True)
             self.doubleSpinBox_3.setEnabled(True)
@@ -670,36 +692,85 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
             pass
         self.actionExit.triggered.connect(QtWidgets.qApp.quit)
 
+    def manual_heatingRate(self):
+        self.actionman.setStatusTip('Set the heating rate for manual heating')
+        self.actionman.triggered.connect(self.manual_heatingRate_dialogue)
+
+    def manual_heatingRate_dialogue(self):
+        dlg = QtWidgets.QDialog(self)
+        dlg.resize(251, 77)
+        gridLayout = QtWidgets.QGridLayout(dlg)
+        bb = QtWidgets.QDialogButtonBox(dlg)
+        bb.setOrientation(QtCore.Qt.Horizontal)
+        bb.setStandardButtons(
+            QtWidgets.QDialogButtonBox.Cancel | QtWidgets.QDialogButtonBox.Ok)
+        bb.accepted.connect(dlg.accept)
+        bb.rejected.connect(dlg.reject)
+        dlg.setWindowTitle("Set Manual Heating Rate")
+        l = QtWidgets.QLabel(dlg)
+        l.setText("Enter Heating Rate")
+        le = QtWidgets.QLineEdit(dlg)
+        le.setText(str(self.manualheatingRate))
+        gridLayout.addWidget(l, 0, 0)
+        gridLayout.addWidget(le, 0, 1)
+        gridLayout.addWidget(bb, 1, 0, 1, 1)
+        retval = dlg.exec_()
+        name = le.text()
+        if retval == 1:
+            self.manualheatingRate = float(name)
+
+    def default_manualTemperature(self):
+        self.actiondeft.setStatusTip('Set the default temperature for manual heating')
+        self.actiondeft.triggered.connect(self.manual_temperature_dialogue)
+
+    def manual_temperature_dialogue(self):
+        dlg = QtWidgets.QDialog(self)
+        dlg.resize(251, 77)
+        gridLayout = QtWidgets.QGridLayout(dlg)
+        bb = QtWidgets.QDialogButtonBox(dlg)
+        bb.setOrientation(QtCore.Qt.Horizontal)
+        bb.setStandardButtons(
+            QtWidgets.QDialogButtonBox.Cancel | QtWidgets.QDialogButtonBox.Ok)
+        bb.accepted.connect(dlg.accept)
+        bb.rejected.connect(dlg.reject)
+        dlg.setWindowTitle("Set Default Temperature")
+        l = QtWidgets.QLabel(dlg)
+        l.setText("Enter Default Manual Temperature")
+        le = QtWidgets.QLineEdit(dlg)
+        le.setText(str(self.manualDefaultTemperature))
+        gridLayout.addWidget(l, 0, 0)
+        gridLayout.addWidget(le, 0, 1)
+        gridLayout.addWidget(bb, 1, 0, 1, 1)
+        retval = dlg.exec_()
+        name = le.text()
+        if retval == 1:
+            self.manualDefaultTemperature = float(name)
+            self.doubleSpinBox_13.setValue(self.manualDefaultTemperature)
+
     def com1_menu(self):
-        self.actioncom1.setStatusTip('Set instrument address as \'COM1\'')
-        self.actioncom1.triggered.connect(
+        self.actcom1.setStatusTip('Set instrument address as \'COM1\'')
+        self.actcom1.triggered.connect(
             lambda: self.set_instrument_address('COM1'))
 
     def com2_menu(self):
-        self.actioncom2.setStatusTip('Set instrument address as \'COM2\'')
-        self.actioncom2.triggered.connect(
+        self.actcom2.setStatusTip('Set instrument address as \'COM2\'')
+        self.actcom2.triggered.connect(
             lambda: self.set_instrument_address('COM2'))
 
     def com3_menu(self):
-        self.actioncom3.setStatusTip('Set instrument address as \'COM3\'')
-        self.actioncom3.triggered.connect(
+        self.actcom3.setStatusTip('Set instrument address as \'COM3\'')
+        self.actcom3.triggered.connect(
             lambda: self.set_instrument_address('COM3'))
 
     def com4_menu(self):
-        self.actioncom4.setStatusTip('Set instrument address as \'COM4\'')
-        self.actioncom4.triggered.connect(
+        self.actcom4.setStatusTip('Set instrument address as \'COM4\'')
+        self.actcom4.triggered.connect(
             lambda: self.set_instrument_address('COM4'))
 
-    def set_instrument_address(self, addr):
-        self.instrument_address = addr
-        self.label_21.setText(
-            "<html><head/><body><p><span style=\" font-size:10pt;\">{0}</span></p></body></html>".format(
-                self.instrument_address))
-
     def Enter_Manually_menu(self):
-        self.actionEnter_Manually.setStatusTip(
+        self.actionManual_Entry.setStatusTip(
             'Manually enter instrument address (Enter the full address)')
-        self.actionEnter_Manually.triggered.connect(self.manual_entry_dialogue)
+        self.actionManual_Entry.triggered.connect(self.manual_entry_dialogue)
 
     def manual_entry_dialogue(self):
         dlg = QtWidgets.QDialog(self)
@@ -722,6 +793,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         name = le.text()
         if retval == 1:
             self.set_instrument_address(name)
+
+    def set_instrument_address(self, addr):
+        self.instrument_address = addr
+        self.label_21.setText(
+            "<html><head/><body><p><span style=\" font-size:10pt;\">{0}</span></p></body></html>".format(
+                self.instrument_address))
 
     def load_settings(self):
         self.laststep = 0
@@ -768,8 +845,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
     def plot_realtime_data(self):
         self.x = [0]
         self.t2 = [self.current_Temp]
+        self.t3 = [self.current_Surface_Temp]
         self.outputData = [0.0]
         pen2 = pg.mkPen(color=(0, 0, 255), width=2)
+        pen3 = pg.mkPen(color=(0, 128, 0), width=2)
         try:
             if self.data_line:
                 self.data_line.setData(self.x, self.t2)
@@ -779,9 +858,19 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
                 else:
                     self.data_line = self.graphWidget.plot(
                         self.x, self.t2, pen=pen2)
+            if self.data_line3:
+                self.data_line3.setData(self.x, self.t3)
+                if self.fed_data_flag:
+                    self.data_line3 = self.graphWidget.plot(
+                        self.x, self.t3, name="Surface Temparature", pen=pen3)
+                else:
+                    self.data_line3 = self.graphWidget.plot(
+                        self.x, self.t3, pen=pen3)
         except (NameError, AttributeError):
             self.data_line = self.graphWidget.plot(
                 self.x, self.t2, name="Actual T path", pen=pen2)
+            self.data_line3 = self.graphWidget.plot(
+                self.x, self.t3, name="Surface Temperature", pen=pen3)
         self.timer = QtCore.QTimer()
         self.timecount = QtCore.QElapsedTimer()
         self.timer.setInterval(2000)
@@ -794,7 +883,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
         self.get_instrument_status()
         self.outputData.append(self.OP)
         self.t2.append(self.current_Temp)
+        self.t3.append(self.current_Surface_Temp)
         self.data_line.setData(self.x, self.t2)
+        self.data_line3.setData(self.x, self.t3)
+        # TODO: Monitor data of surface temperature, and add check for any deviation from normal run.
         if self.OP > 50:
             if (self.set_Temp - self.current_Temp) / self.set_Temp * 100 > 5:
                 self.stop_program()
@@ -956,7 +1048,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_Eurotherm2408):
     def store_software_close_event(self):
         t = localtime()
         elapsed_time = strftime("%H:%M:%S", t)
-        with open(self.fname, 'a', newline='') as f:
+        with open(self.fnamelog, 'a', newline='') as f:
             f.write(f"\n{elapsed_time}, Software closed.")
 
     def closeEvent(self, event):
